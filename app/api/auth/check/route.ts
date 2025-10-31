@@ -37,8 +37,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({
       authenticated: true,
       linked: false,
-      needsLink: true,
-      redirectTo: '/setup/link-account'
+      needsLink: true
     })
 
   } catch (error: any) {

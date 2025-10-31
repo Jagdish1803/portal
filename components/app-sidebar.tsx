@@ -241,19 +241,22 @@ const data = {
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   // Fetch current user role
-  const { data: userData, isLoading } = useQuery({
+  const { data: userData } = useQuery({
     queryKey: ['currentUser'],
     queryFn: async () => {
       const response = await fetch('/api/auth/me')
       if (!response.ok) return null
       return response.json()
-    }
+    },
+    // Show full menu immediately while loading
+    placeholderData: { employee: { role: 'ADMIN' } },
+    staleTime: 1000 * 60 * 5, // Cache for 5 minutes
   })
 
-  const userRole = userData?.employee?.role || 'EMPLOYEE'
+  const userRole = userData?.employee?.role || 'ADMIN'
 
   // Filter navigation items based on role
-  const getFilteredNavMain = () => {
+  const getFilteredNavMain = React.useMemo(() => {
     if (userRole === 'EMPLOYEE') {
       // Employees should not see admin features
       return data.navMain.filter(item => 
@@ -262,10 +265,10 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
     }
     // ADMIN and TEAMLEADER see everything
     return data.navMain
-  }
+  }, [userRole])
 
   // Get secondary nav items based on role
-  const getSecondaryNav = () => {
+  const getSecondaryNav = React.useMemo(() => {
     if (userRole === 'ADMIN' || userRole === 'TEAMLEADER') {
       return [
         {
@@ -277,11 +280,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       ]
     }
     return data.navSecondary
-  }
-
-  // Show all menu items immediately (no loading state needed)
-  // The default role is 'EMPLOYEE' so it will show employee menu first
-  // Then re-render when actual role loads
+  }, [userRole])
 
   return (
     <Sidebar variant="inset" {...props}>
@@ -302,8 +301,8 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         </SidebarMenu>
       </SidebarHeader>
       <SidebarContent>
-        <NavMain items={getFilteredNavMain()} />
-        <NavSecondary items={getSecondaryNav()} className="mt-auto" />
+        <NavMain items={getFilteredNavMain} />
+        <NavSecondary items={getSecondaryNav} className="mt-auto" />
       </SidebarContent>
       <SidebarFooter>
         <NavUser />

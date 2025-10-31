@@ -454,17 +454,9 @@ export default function MyAttendanceRecordsPage() {
               <div className="text-red-500 text-lg font-semibold mb-2">Error Loading Attendance</div>
               <div className="text-muted-foreground mb-4 text-center max-w-md">{error}</div>
               {error.includes('Not authenticated') && (
-                <>
-                  <div className="text-sm text-muted-foreground mb-4 text-center">
-                    Your account needs to be linked to an employee record.
-                  </div>
-                  <Button 
-                    onClick={() => window.location.href = '/setup/link-account'} 
-                    className="mb-2"
-                  >
-                    Link Account Now
-                  </Button>
-                </>
+                <div className="text-sm text-muted-foreground mb-4 text-center">
+                  Please contact your administrator to link your account.
+                </div>
               )}
               <Button onClick={() => fetchAttendanceRecords()} variant="outline">
                 Retry
