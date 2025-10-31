@@ -72,8 +72,8 @@ export default function TagAssignmentsPage() {
       const employeesData = await employeesRes.json();
 
       setAssignments(assignmentsData.assignments || []);
-      setTags(tagsData.tags?.filter((t: Tag) => t.isActive) || []);
-      setEmployees(employeesData.employees || []);
+      setTags(tagsData.data?.filter((t: Tag) => t.isActive) || []);
+      setEmployees(employeesData.data || []);
     } catch (error) {
       console.error('Error fetching data:', error);
       toast.error('Failed to load data');
