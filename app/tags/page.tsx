@@ -133,7 +133,7 @@ export default function TagsPage() {
             <div>
               <p className="text-sm text-muted-foreground">Active Tags</p>
               <p className="text-2xl font-bold text-green-600">
-                {tags?.filter(t => t.isActive).length || 0}
+                {tags?.filter((t: TagData) => t.isActive).length || 0}
               </p>
             </div>
             <Tag className="h-8 w-8 text-green-500" />
