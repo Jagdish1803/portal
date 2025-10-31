@@ -5,10 +5,13 @@ import { existsSync } from 'fs'
 import { prisma } from '@/lib/prisma'
 
 export async function POST(request: NextRequest) {
+  let file: File | null = null
+  let date: string | null = null
+  
   try {
     const formData = await request.formData()
-    const file = formData.get('file') as File
-    const date = formData.get('date') as string
+    file = formData.get('file') as File
+    date = formData.get('date') as string
 
     console.log('Upload started:', { filename: file?.name, date })
 
@@ -245,6 +248,40 @@ export async function POST(request: NextRequest) {
     
     console.log('Records saved to database:', savedCount)
     
+    // Save upload history
+    try {
+      const uploadHistoryEntry = {
+        id: batchId,
+        filename: file.name,
+        fileType: 'flowace_csv',
+        status: 'COMPLETED',
+        totalRecords: records.length,
+        processedRecords: savedCount,
+        errorRecords: records.length - savedCount,
+        uploadedAt: new Date().toISOString(),
+        completedAt: new Date().toISOString(),
+        batchId: batchId,
+        date: uploadDate.toISOString(),
+        summary: {
+          date: date,
+          recordsFound: records.length,
+          recordsSaved: savedCount,
+          recordsFailed: records.length - savedCount
+        }
+      }
+
+      // Save to upload history
+      await fetch(`${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/upload-history`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(uploadHistoryEntry)
+      }).catch(err => console.error('Failed to save upload history:', err))
+
+    } catch (historyError) {
+      console.error('Error saving upload history:', historyError)
+      // Don't fail the entire upload if history saving fails
+    }
+    
     return NextResponse.json({
       success: true,
       message: 'File uploaded successfully',
@@ -257,6 +294,37 @@ export async function POST(request: NextRequest) {
 
   } catch (error: any) {
     console.error('Error uploading Flowace CSV:', error)
+    
+    // Save failed upload to history
+    try {
+      const failedHistoryEntry = {
+        id: `flowace_failed_${Date.now()}`,
+        filename: file?.name || 'unknown',
+        fileType: 'flowace_csv',
+        status: 'FAILED',
+        totalRecords: 0,
+        processedRecords: 0,
+        errorRecords: 0,
+        uploadedAt: new Date().toISOString(),
+        completedAt: new Date().toISOString(),
+        batchId: `flowace_failed_${Date.now()}`,
+        date: date || new Date().toISOString(),
+        errors: {
+          message: error.message,
+          stack: error.stack
+        }
+      }
+
+      await fetch(`${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/upload-history`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(failedHistoryEntry)
+      }).catch(err => console.error('Failed to save failed upload history:', err))
+
+    } catch (historyError) {
+      console.error('Error saving failed upload history:', historyError)
+    }
+    
     return NextResponse.json(
       { error: `Failed to upload file: ${error.message}` },
       { status: 500 }
