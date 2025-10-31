@@ -170,27 +170,27 @@ export default function CreateAssignmentPage() {
 
               {/* Tag Selection */}
               <div className="space-y-3">
-                <Label htmlFor="tag" className="text-base font-semibold">
+                <Label className="text-base font-semibold">
                   Select Tag
                 </Label>
-                <Select value={selectedTag} onValueChange={setSelectedTag}>
-                  <SelectTrigger id="tag" className="w-full">
-                    <SelectValue placeholder="Select a tag" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {tags.length === 0 ? (
-                      <div className="p-4 text-center text-sm text-muted-foreground">
-                        No tags found
-                      </div>
-                    ) : (
-                      tags.map((tag) => (
-                        <SelectItem key={tag.id} value={tag.id.toString()}>
-                          {tag.tagName} ({tag.timeMinutes} min)
-                        </SelectItem>
-                      ))
-                    )}
-                  </SelectContent>
-                </Select>
+                <div className="flex flex-wrap gap-2 p-4 border rounded-lg min-h-[100px] bg-muted/10">
+                  {tags.length === 0 ? (
+                    <div className="w-full text-center text-sm text-muted-foreground py-4">
+                      No tags available
+                    </div>
+                  ) : (
+                    tags.map((tag) => (
+                      <Badge
+                        key={tag.id}
+                        variant={selectedTag === tag.id.toString() ? "default" : "outline"}
+                        className="cursor-pointer hover:bg-primary/90 px-3 py-1.5 text-sm"
+                        onClick={() => setSelectedTag(tag.id.toString())}
+                      >
+                        {tag.tagName} ({tag.timeMinutes}min)
+                      </Badge>
+                    ))
+                  )}
+                </div>
               </div>
 
               {/* Mandatory Checkbox */}
