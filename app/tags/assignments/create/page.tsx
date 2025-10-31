@@ -7,10 +7,9 @@ import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
-import { ArrowLeft, UserPlus, Tag as TagIcon, Loader2, CheckCircle, AlertCircle } from 'lucide-react';
+import { ArrowLeft, Loader2, Users } from 'lucide-react';
 import { toast } from 'sonner';
 import { Badge } from '@/components/ui/badge';
-import { Input } from '@/components/ui/input';
 
 interface Tag {
   id: number;
@@ -39,8 +38,6 @@ export default function CreateAssignmentPage() {
   const [selectedEmployee, setSelectedEmployee] = useState('');
   const [selectedTag, setSelectedTag] = useState('');
   const [isMandatory, setIsMandatory] = useState(false);
-  const [searchEmployee, setSearchEmployee] = useState('');
-  const [searchTag, setSearchTag] = useState('');
 
   useEffect(() => {
     fetchData();
@@ -103,17 +100,11 @@ export default function CreateAssignmentPage() {
     }
   };
 
-  const selectedEmployeeData = employees.find(e => e.id.toString() === selectedEmployee);
-  const selectedTagData = tags.find(t => t.id.toString() === selectedTag);
-
-  const filteredEmployees = employees.filter(emp =>
-    emp.name.toLowerCase().includes(searchEmployee.toLowerCase()) ||
-    emp.employeeCode.toLowerCase().includes(searchEmployee.toLowerCase())
-  );
-
-  const filteredTags = tags.filter(tag =>
-    tag.tagName.toLowerCase().includes(searchTag.toLowerCase())
-  );
+  const getSelectedEmployees = () => {
+    return employees.filter(emp => 
+      selectedEmployee.split(',').includes(emp.id.toString())
+    );
+  };
 
   if (loading) {
     return (
@@ -127,68 +118,49 @@ export default function CreateAssignmentPage() {
   }
 
   return (
-    <div className="space-y-6 max-w-4xl mx-auto">
+    <div className="space-y-6">
       {/* Header */}
       <div className="flex items-center gap-4">
         <Button variant="outline" size="icon" onClick={() => router.back()}>
           <ArrowLeft className="h-4 w-4" />
         </Button>
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Create New Assignment</h1>
+          <h1 className="text-3xl font-bold tracking-tight">Create Assignment</h1>
           <p className="text-muted-foreground">
-            Assign a tag to an employee for work tracking
+            Assign tags to employees for their work tracking
           </p>
         </div>
       </div>
 
       <form onSubmit={handleSubmit}>
-        <div className="grid gap-6">
-          {/* Employee Selection Card */}
+        <div className="space-y-6">
+          {/* Main Card */}
           <Card>
             <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <UserPlus className="h-5 w-5 text-blue-600" />
-                Select Employee
-              </CardTitle>
+              <CardTitle>Assignment Details</CardTitle>
               <CardDescription>
-                Choose which employee will work on this tag
+                Select employee and tag to create a new assignment
               </CardDescription>
             </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="employee">Employee *</Label>
+            <CardContent className="space-y-6">
+              {/* Employee Selection */}
+              <div className="space-y-3">
+                <Label htmlFor="employee" className="text-base font-semibold">
+                  Select Employee
+                </Label>
                 <Select value={selectedEmployee} onValueChange={setSelectedEmployee}>
-                  <SelectTrigger id="employee" className="h-12">
-                    <SelectValue placeholder="Select an employee" />
+                  <SelectTrigger id="employee" className="w-full">
+                    <SelectValue placeholder="Select employees to add" />
                   </SelectTrigger>
                   <SelectContent>
-                    <div className="p-2">
-                      <Input
-                        placeholder="Search employees..."
-                        value={searchEmployee}
-                        onChange={(e) => setSearchEmployee(e.target.value)}
-                        className="mb-2"
-                        onClick={(e) => e.stopPropagation()}
-                      />
-                    </div>
-                    {filteredEmployees.length === 0 ? (
+                    {employees.length === 0 ? (
                       <div className="p-4 text-center text-sm text-muted-foreground">
                         No employees found
                       </div>
                     ) : (
-                      filteredEmployees.map((emp) => (
+                      employees.map((emp) => (
                         <SelectItem key={emp.id} value={emp.id.toString()}>
-                          <div className="flex items-center gap-3 py-1">
-                            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center text-white font-semibold">
-                              {emp.name.charAt(0).toUpperCase()}
-                            </div>
-                            <div className="flex-1">
-                              <div className="font-medium">{emp.name}</div>
-                              <div className="text-xs text-muted-foreground">
-                                {emp.employeeCode} • {emp.role}
-                              </div>
-                            </div>
-                          </div>
+                          {emp.name} ({emp.employeeCode})
                         </SelectItem>
                       ))
                     )}
@@ -196,77 +168,24 @@ export default function CreateAssignmentPage() {
                 </Select>
               </div>
 
-              {selectedEmployeeData && (
-                <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
-                  <div className="flex items-start gap-3">
-                    <div className="w-12 h-12 rounded-full bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center text-white font-semibold text-lg">
-                      {selectedEmployeeData.name.charAt(0).toUpperCase()}
-                    </div>
-                    <div className="flex-1">
-                      <h4 className="font-semibold text-lg">{selectedEmployeeData.name}</h4>
-                      <div className="flex flex-wrap gap-2 mt-2">
-                        <Badge variant="outline">{selectedEmployeeData.employeeCode}</Badge>
-                        <Badge variant="secondary">{selectedEmployeeData.role}</Badge>
-                        {selectedEmployeeData.department && (
-                          <Badge variant="outline">{selectedEmployeeData.department}</Badge>
-                        )}
-                      </div>
-                      <p className="text-sm text-muted-foreground mt-2">{selectedEmployeeData.email}</p>
-                    </div>
-                    <CheckCircle className="h-6 w-6 text-green-600" />
-                  </div>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-
-          {/* Tag Selection Card */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <TagIcon className="h-5 w-5 text-purple-600" />
-                Select Tag
-              </CardTitle>
-              <CardDescription>
-                Choose which tag to assign to this employee
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="tag">Tag *</Label>
+              {/* Tag Selection */}
+              <div className="space-y-3">
+                <Label htmlFor="tag" className="text-base font-semibold">
+                  Select Tag
+                </Label>
                 <Select value={selectedTag} onValueChange={setSelectedTag}>
-                  <SelectTrigger id="tag" className="h-12">
+                  <SelectTrigger id="tag" className="w-full">
                     <SelectValue placeholder="Select a tag" />
                   </SelectTrigger>
                   <SelectContent>
-                    <div className="p-2">
-                      <Input
-                        placeholder="Search tags..."
-                        value={searchTag}
-                        onChange={(e) => setSearchTag(e.target.value)}
-                        className="mb-2"
-                        onClick={(e) => e.stopPropagation()}
-                      />
-                    </div>
-                    {filteredTags.length === 0 ? (
+                    {tags.length === 0 ? (
                       <div className="p-4 text-center text-sm text-muted-foreground">
                         No tags found
                       </div>
                     ) : (
-                      filteredTags.map((tag) => (
+                      tags.map((tag) => (
                         <SelectItem key={tag.id} value={tag.id.toString()}>
-                          <div className="flex items-center justify-between gap-3 py-1 w-full">
-                            <div className="flex items-center gap-3">
-                              <TagIcon className="h-4 w-4 text-purple-600" />
-                              <div>
-                                <div className="font-medium">{tag.tagName}</div>
-                                {tag.category && (
-                                  <div className="text-xs text-muted-foreground">{tag.category}</div>
-                                )}
-                              </div>
-                            </div>
-                            <Badge variant="secondary">{tag.timeMinutes} min</Badge>
-                          </div>
+                          {tag.tagName} ({tag.timeMinutes} min)
                         </SelectItem>
                       ))
                     )}
@@ -274,93 +193,70 @@ export default function CreateAssignmentPage() {
                 </Select>
               </div>
 
-              {selectedTagData && (
-                <div className="p-4 bg-purple-50 border border-purple-200 rounded-lg">
-                  <div className="flex items-start gap-3">
-                    <div className="w-12 h-12 rounded-full bg-gradient-to-br from-purple-500 to-purple-600 flex items-center justify-center">
-                      <TagIcon className="h-6 w-6 text-white" />
-                    </div>
-                    <div className="flex-1">
-                      <h4 className="font-semibold text-lg">{selectedTagData.tagName}</h4>
-                      <div className="flex flex-wrap gap-2 mt-2">
-                        <Badge variant="outline">⏱️ {selectedTagData.timeMinutes} minutes</Badge>
-                        {selectedTagData.category && (
-                          <Badge variant="secondary">{selectedTagData.category}</Badge>
-                        )}
-                      </div>
-                    </div>
-                    <CheckCircle className="h-6 w-6 text-green-600" />
-                  </div>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-
-          {/* Assignment Options Card */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Assignment Options</CardTitle>
-              <CardDescription>
-                Configure additional settings for this assignment
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="flex items-start space-x-3">
+              {/* Mandatory Checkbox */}
+              <div className="flex items-center space-x-2 pt-2">
                 <Checkbox 
                   id="mandatory" 
                   checked={isMandatory}
                   onCheckedChange={(checked) => setIsMandatory(checked as boolean)}
-                  className="mt-1"
                 />
-                <div className="flex-1">
-                  <Label 
-                    htmlFor="mandatory" 
-                    className="text-base font-medium cursor-pointer"
-                  >
-                    Mark as Mandatory
-                  </Label>
-                  <p className="text-sm text-muted-foreground mt-1">
-                    Employee must submit work for this tag. Mandatory tags are tracked more strictly.
-                  </p>
-                </div>
+                <Label 
+                  htmlFor="mandatory" 
+                  className="text-sm font-normal cursor-pointer"
+                >
+                  Mark as mandatory
+                </Label>
               </div>
             </CardContent>
           </Card>
 
-          {/* Summary Card */}
-          {selectedEmployeeData && selectedTagData && (
-            <Card className="border-2 border-green-200 bg-green-50">
+          {/* Selected Employee Display */}
+          {selectedEmployee && (
+            <Card>
               <CardHeader>
-                <CardTitle className="flex items-center gap-2 text-green-800">
-                  <CheckCircle className="h-5 w-5" />
-                  Assignment Summary
-                </CardTitle>
+                <div className="flex items-center gap-2">
+                  <Users className="h-5 w-5 text-muted-foreground" />
+                  <CardTitle className="text-base">Assigned Employee</CardTitle>
+                </div>
               </CardHeader>
-              <CardContent className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm font-medium text-green-900">Employee:</span>
-                  <span className="text-sm text-green-700">{selectedEmployeeData.name}</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-sm font-medium text-green-900">Tag:</span>
-                  <span className="text-sm text-green-700">{selectedTagData.tagName}</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-sm font-medium text-green-900">Time Required:</span>
-                  <span className="text-sm text-green-700">{selectedTagData.timeMinutes} minutes</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-sm font-medium text-green-900">Type:</span>
-                  <Badge variant={isMandatory ? 'default' : 'secondary'}>
-                    {isMandatory ? 'Mandatory' : 'Optional'}
-                  </Badge>
-                </div>
+              <CardContent>
+                {getSelectedEmployees().length === 0 ? (
+                  <div className="flex flex-col items-center justify-center py-8 text-center">
+                    <Users className="h-12 w-12 text-gray-300 mb-3" />
+                    <p className="text-muted-foreground">No employee selected yet</p>
+                    <p className="text-sm text-muted-foreground mt-1">
+                      Select employee from the dropdown above
+                    </p>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {getSelectedEmployees().map((emp) => (
+                      <div
+                        key={emp.id}
+                        className="flex items-center justify-between p-3 rounded-lg border bg-card"
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
+                            <span className="text-sm font-semibold text-primary">
+                              {emp.name.charAt(0).toUpperCase()}
+                            </span>
+                          </div>
+                          <div>
+                            <p className="font-medium">{emp.name}</p>
+                            <p className="text-sm text-muted-foreground">{emp.employeeCode}</p>
+                          </div>
+                        </div>
+                        <Badge variant="secondary">{emp.role}</Badge>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </CardContent>
             </Card>
           )}
 
           {/* Action Buttons */}
-          <div className="flex items-center justify-end gap-3 pt-4">
+          <div className="flex items-center justify-end gap-3">
             <Button 
               type="button" 
               variant="outline" 
@@ -372,18 +268,14 @@ export default function CreateAssignmentPage() {
             <Button 
               type="submit" 
               disabled={submitting || !selectedEmployee || !selectedTag}
-              className="min-w-32"
             >
               {submitting ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Assigning...
+                  Creating...
                 </>
               ) : (
-                <>
-                  <CheckCircle className="mr-2 h-4 w-4" />
-                  Assign Tag
-                </>
+                'Assign Tag'
               )}
             </Button>
           </div>
