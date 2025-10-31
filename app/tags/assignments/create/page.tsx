@@ -36,8 +36,16 @@ export default function CreateAssignmentPage() {
   const [submitting, setSubmitting] = useState(false);
   
   const [selectedEmployee, setSelectedEmployee] = useState('');
-  const [selectedTag, setSelectedTag] = useState('');
+  const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [isMandatory, setIsMandatory] = useState(false);
+
+  const toggleTag = (tagId: string) => {
+    setSelectedTags(prev => 
+      prev.includes(tagId) 
+        ? prev.filter(id => id !== tagId)
+        : [...prev, tagId]
+    );
+  };
 
   useEffect(() => {
     fetchData();
@@ -67,34 +75,39 @@ export default function CreateAssignmentPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!selectedEmployee || !selectedTag) {
-      toast.error('Please select both employee and tag');
+    if (!selectedEmployee || selectedTags.length === 0) {
+      toast.error('Please select employee and at least one tag');
       return;
     }
 
     try {
       setSubmitting(true);
-      const response = await fetch('/api/assignments', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          employeeId: parseInt(selectedEmployee),
-          tagId: parseInt(selectedTag),
-          isMandatory
+      
+      // Create multiple assignments - one for each tag
+      const promises = selectedTags.map(tagId =>
+        fetch('/api/assignments', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            employeeId: parseInt(selectedEmployee),
+            tagId: parseInt(tagId),
+            isMandatory
+          })
         })
-      });
+      );
 
-      const data = await response.json();
+      const results = await Promise.all(promises);
+      const successCount = results.filter(r => r.ok).length;
 
-      if (response.ok) {
-        toast.success('Tag assigned successfully');
+      if (successCount > 0) {
+        toast.success(`Successfully assigned ${successCount} tag${successCount > 1 ? 's' : ''}`);
         router.push('/tags/assignments');
       } else {
-        toast.error(data.error || 'Failed to assign tag');
+        toast.error('Failed to assign tags');
       }
     } catch (error) {
-      console.error('Error creating assignment:', error);
-      toast.error('Failed to assign tag');
+      console.error('Error creating assignments:', error);
+      toast.error('Failed to assign tags');
     } finally {
       setSubmitting(false);
     }
@@ -171,23 +184,34 @@ export default function CreateAssignmentPage() {
               {/* Tag Selection */}
               <div className="space-y-3">
                 <Label className="text-base font-semibold">
-                  Select Tag
+                  Select Tags
+                  {selectedTags.length > 0 && (
+                    <span className="ml-2 text-sm font-normal text-muted-foreground">
+                      ({selectedTags.length} selected)
+                    </span>
+                  )}
                 </Label>
-                <div className="flex flex-wrap gap-2 p-4 border rounded-lg min-h-[100px] bg-muted/10">
+                <div className="flex flex-wrap gap-2 p-4 border rounded-md min-h-[120px] bg-background">
                   {tags.length === 0 ? (
-                    <div className="w-full text-center text-sm text-muted-foreground py-4">
+                    <div className="w-full text-center text-sm text-muted-foreground py-8">
                       No tags available
                     </div>
                   ) : (
                     tags.map((tag) => (
-                      <Badge
+                      <button
                         key={tag.id}
-                        variant={selectedTag === tag.id.toString() ? "default" : "outline"}
-                        className="cursor-pointer hover:bg-primary/90 px-3 py-1.5 text-sm"
-                        onClick={() => setSelectedTag(tag.id.toString())}
+                        type="button"
+                        onClick={() => toggleTag(tag.id.toString())}
+                        className={`
+                          px-3 py-1.5 rounded-md text-sm font-medium transition-colors
+                          ${selectedTags.includes(tag.id.toString())
+                            ? 'bg-primary text-primary-foreground hover:bg-primary/90'
+                            : 'bg-secondary text-secondary-foreground hover:bg-secondary/80'
+                          }
+                        `}
                       >
                         {tag.tagName} ({tag.timeMinutes}min)
-                      </Badge>
+                      </button>
                     ))
                   )}
                 </div>
@@ -267,15 +291,15 @@ export default function CreateAssignmentPage() {
             </Button>
             <Button 
               type="submit" 
-              disabled={submitting || !selectedEmployee || !selectedTag}
+              disabled={submitting || !selectedEmployee || selectedTags.length === 0}
             >
               {submitting ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Creating...
+                  Assigning...
                 </>
               ) : (
-                'Assign Tag'
+                `Assign ${selectedTags.length > 0 ? selectedTags.length : ''} Tag${selectedTags.length !== 1 ? 's' : ''}`
               )}
             </Button>
           </div>
