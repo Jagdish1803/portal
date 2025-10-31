@@ -29,7 +29,7 @@ export async function GET(request: NextRequest) {
             name: true,
             employeeCode: true,
             email: true,
-            department: true,
+            role: true,
           },
         },
         tag: true,
@@ -41,7 +41,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      data: assignments,
+      assignments,
       count: assignments.length,
     })
   } catch (error: any) {
@@ -132,9 +132,25 @@ export async function POST(request: NextRequest) {
   }
 }
 
-// DELETE /api/assignments - Bulk delete assignments
+// DELETE /api/assignments - Delete assignment(s)
 export async function DELETE(request: NextRequest) {
   try {
+    const searchParams = request.nextUrl.searchParams
+    const id = searchParams.get('id')
+
+    if (id) {
+      // Delete single assignment
+      await prisma.assignment.delete({
+        where: { id: parseInt(id) }
+      })
+
+      return NextResponse.json({
+        success: true,
+        message: 'Assignment deleted successfully',
+      })
+    }
+
+    // Bulk delete
     const body = await request.json()
     const { ids } = body
 
@@ -142,7 +158,7 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json(
         {
           success: false,
-          error: 'IDs array is required',
+          error: 'ID parameter or IDs array is required',
         },
         { status: 400 }
       )
