@@ -1,7 +1,7 @@
-'use client'
+﻿'use client'
 
 import { useState } from 'react'
-import { useQuery, useMutation } from '@tanstack/react-query'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
@@ -10,37 +10,11 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
-import { Package, UserPlus, RotateCcw } from 'lucide-react'
+import { Package, UserPlus, RotateCcw, Loader2 } from 'lucide-react'
 import { toast } from 'sonner'
 
-const mockAssignments = [
-  {
-    id: 1,
-    assetId: 1,
-    assetName: 'MacBook Pro 16"',
-    serialNumber: 'MBP2024001',
-    employeeId: 1,
-    employeeName: 'John Doe',
-    employeeCode: 'EMP001',
-    assignedDate: '2024-01-15',
-    returnDate: null,
-    status: 'ACTIVE',
-    assignmentNotes: 'Standard development laptop',
-    returnCondition: null
-  }
-]
-
-const mockAssets = [
-  { id: 1, name: 'MacBook Pro 16"', serialNumber: 'MBP2024001', status: 'AVAILABLE' },
-  { id: 2, name: 'Dell Monitor 27"', serialNumber: 'MON2024002', status: 'AVAILABLE' }
-]
-
-const mockEmployees = [
-  { id: 1, name: 'John Doe', code: 'EMP001' },
-  { id: 2, name: 'Jane Smith', code: 'EMP002' }
-]
-
 export default function AssetAssignmentsPage() {
+  const queryClient = useQueryClient()
   const [isAssignDialogOpen, setIsAssignDialogOpen] = useState(false)
   const [isReturnDialogOpen, setIsReturnDialogOpen] = useState(false)
   const [selectedAssignment, setSelectedAssignment] = useState<any>(null)
@@ -54,41 +28,90 @@ export default function AssetAssignmentsPage() {
     returnNotes: ''
   })
 
-  const { data: assignments, isLoading } = useQuery({
+  const { data: assignmentsData, isLoading: assignmentsLoading } = useQuery({
     queryKey: ['asset-assignments'],
     queryFn: async () => {
-      await new Promise(resolve => setTimeout(resolve, 1000))
-      return mockAssignments
+      const response = await fetch('/api/assets/assignments')
+      if (!response.ok) throw new Error('Failed to fetch assignments')
+      return response.json()
     }
   })
 
+  const { data: assetsData } = useQuery({
+    queryKey: ['available-assets'],
+    queryFn: async () => {
+      const response = await fetch('/api/assets?status=AVAILABLE')
+      if (!response.ok) throw new Error('Failed to fetch assets')
+      return response.json()
+    }
+  })
+
+  const { data: employeesData } = useQuery({
+    queryKey: ['employees'],
+    queryFn: async () => {
+      const response = await fetch('/api/employees')
+      if (!response.ok) throw new Error('Failed to fetch employees')
+      return response.json()
+    }
+  })
+
+  const assignments = assignmentsData?.data || []
+  const availableAssets = assetsData?.data || []
+  const employees = employeesData?.data || []
+
   const assignMutation = useMutation({
     mutationFn: async (data: typeof newAssignment) => {
-      await new Promise(resolve => setTimeout(resolve, 1500))
-      return { success: true }
+      const response = await fetch('/api/assets/assignments', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      })
+      if (!response.ok) {
+        const error = await response.json()
+        throw new Error(error.error || 'Failed to assign asset')
+      }
+      return response.json()
     },
     onSuccess: () => {
       toast.success('Asset assigned successfully!')
+      queryClient.invalidateQueries({ queryKey: ['asset-assignments'] })
+      queryClient.invalidateQueries({ queryKey: ['available-assets'] })
+      queryClient.invalidateQueries({ queryKey: ['assets'] })
       setIsAssignDialogOpen(false)
       setNewAssignment({ assetId: '', employeeId: '', assignmentNotes: '' })
     },
-    onError: () => {
-      toast.error('Failed to assign asset')
+    onError: (error: any) => {
+      toast.error(error.message || 'Failed to assign asset')
     }
   })
 
   const returnMutation = useMutation({
     mutationFn: async (data: typeof returnData) => {
-      await new Promise(resolve => setTimeout(resolve, 1500))
-      return { success: true }
+      const response = await fetch('/api/assets/assignments', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          assignmentId: selectedAssignment.id,
+          ...data,
+        }),
+      })
+      if (!response.ok) {
+        const error = await response.json()
+        throw new Error(error.error || 'Failed to return asset')
+      }
+      return response.json()
     },
     onSuccess: () => {
       toast.success('Asset returned successfully!')
+      queryClient.invalidateQueries({ queryKey: ['asset-assignments'] })
+      queryClient.invalidateQueries({ queryKey: ['available-assets'] })
+      queryClient.invalidateQueries({ queryKey: ['assets'] })
       setIsReturnDialogOpen(false)
+      setSelectedAssignment(null)
       setReturnData({ returnCondition: 'GOOD', returnNotes: '' })
     },
-    onError: () => {
-      toast.error('Failed to return asset')
+    onError: (error: any) => {
+      toast.error(error.message || 'Failed to return asset')
     }
   })
 
@@ -108,14 +131,20 @@ export default function AssetAssignmentsPage() {
     returnMutation.mutate(returnData)
   }
 
+  if (assignmentsLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      </div>
+    )
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-3xl font-bold tracking-tight">Asset Assignments</h2>
-          <p className="text-muted-foreground">
-            Manage asset assignments to employees
-          </p>
+          <p className="text-muted-foreground">Manage asset assignments to employees</p>
         </div>
         <Dialog open={isAssignDialogOpen} onOpenChange={setIsAssignDialogOpen}>
           <DialogTrigger asChild>
@@ -127,9 +156,7 @@ export default function AssetAssignmentsPage() {
           <DialogContent>
             <DialogHeader>
               <DialogTitle>Assign Asset to Employee</DialogTitle>
-              <DialogDescription>
-                Select an available asset and assign it to an employee
-              </DialogDescription>
+              <DialogDescription>Select an available asset and assign it to an employee</DialogDescription>
             </DialogHeader>
             <div className="space-y-4 py-4">
               <div className="space-y-2">
@@ -142,9 +169,9 @@ export default function AssetAssignmentsPage() {
                     <SelectValue placeholder="Choose an asset" />
                   </SelectTrigger>
                   <SelectContent>
-                    {mockAssets.map(asset => (
+                    {availableAssets.map((asset: any) => (
                       <SelectItem key={asset.id} value={String(asset.id)}>
-                        {asset.name} (S/N: {asset.serialNumber})
+                        {asset.assetName} (S/N: {asset.serialNumber || 'N/A'})
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -160,9 +187,9 @@ export default function AssetAssignmentsPage() {
                     <SelectValue placeholder="Choose an employee" />
                   </SelectTrigger>
                   <SelectContent>
-                    {mockEmployees.map(emp => (
+                    {employees.map((emp: any) => (
                       <SelectItem key={emp.id} value={String(emp.id)}>
-                        {emp.name} ({emp.code})
+                        {emp.name} ({emp.employeeCode})
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -179,9 +206,7 @@ export default function AssetAssignmentsPage() {
               </div>
             </div>
             <DialogFooter>
-              <Button variant="outline" onClick={() => setIsAssignDialogOpen(false)}>
-                Cancel
-              </Button>
+              <Button variant="outline" onClick={() => setIsAssignDialogOpen(false)}>Cancel</Button>
               <Button onClick={handleAssign} disabled={assignMutation.isPending}>
                 {assignMutation.isPending ? 'Assigning...' : 'Assign Asset'}
               </Button>
@@ -190,7 +215,6 @@ export default function AssetAssignmentsPage() {
         </Dialog>
       </div>
 
-      {/* Statistics */}
       <div className="grid gap-4 md:grid-cols-3">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -199,7 +223,7 @@ export default function AssetAssignmentsPage() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-blue-600">
-              {assignments?.filter(a => a.status === 'ACTIVE').length || 0}
+              {assignments.filter((a: any) => a.status === 'ACTIVE').length || 0}
             </div>
           </CardContent>
         </Card>
@@ -209,7 +233,7 @@ export default function AssetAssignmentsPage() {
             <Package className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{assignments?.length || 0}</div>
+            <div className="text-2xl font-bold">{assignments.length || 0}</div>
           </CardContent>
         </Card>
         <Card>
@@ -219,19 +243,16 @@ export default function AssetAssignmentsPage() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-green-600">
-              {assignments?.filter(a => a.status === 'RETURNED').length || 0}
+              {assignments.filter((a: any) => a.status === 'RETURNED').length || 0}
             </div>
           </CardContent>
         </Card>
       </div>
 
-      {/* Assignments Table */}
       <Card>
         <CardHeader>
           <CardTitle>Asset Assignments</CardTitle>
-          <CardDescription>
-            Track all asset assignments to employees
-          </CardDescription>
+          <CardDescription>Track all asset assignments to employees</CardDescription>
         </CardHeader>
         <CardContent>
           <Table>
@@ -247,48 +268,51 @@ export default function AssetAssignmentsPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {assignments?.map((assignment) => (
-                <TableRow key={assignment.id}>
-                  <TableCell className="font-medium">{assignment.assetName}</TableCell>
-                  <TableCell>{assignment.serialNumber}</TableCell>
-                  <TableCell>{assignment.employeeName}</TableCell>
-                  <TableCell>{assignment.employeeCode}</TableCell>
-                  <TableCell>{new Date(assignment.assignedDate).toLocaleDateString()}</TableCell>
-                  <TableCell>
-                    <Badge variant={assignment.status === 'ACTIVE' ? 'default' : 'outline'}>
-                      {assignment.status}
-                    </Badge>
-                  </TableCell>
-                  <TableCell>
-                    {assignment.status === 'ACTIVE' && (
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => {
-                          setSelectedAssignment(assignment)
-                          setIsReturnDialogOpen(true)
-                        }}
-                      >
-                        <RotateCcw className="mr-2 h-4 w-4" />
-                        Return
-                      </Button>
-                    )}
-                  </TableCell>
+              {assignments.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={7} className="text-center text-muted-foreground">No asset assignments found</TableCell>
                 </TableRow>
-              ))}
+              ) : (
+                assignments.map((assignment: any) => (
+                  <TableRow key={assignment.id}>
+                    <TableCell className="font-medium">{assignment.asset.assetName}</TableCell>
+                    <TableCell>{assignment.asset.serialNumber || 'N/A'}</TableCell>
+                    <TableCell>{assignment.employee.name}</TableCell>
+                    <TableCell>{assignment.employee.employeeCode}</TableCell>
+                    <TableCell>{new Date(assignment.assignedDate).toLocaleDateString()}</TableCell>
+                    <TableCell>
+                      <Badge variant={assignment.status === 'ACTIVE' ? 'default' : 'outline'}>
+                        {assignment.status}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
+                      {assignment.status === 'ACTIVE' && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => {
+                            setSelectedAssignment(assignment)
+                            setIsReturnDialogOpen(true)
+                          }}
+                        >
+                          <RotateCcw className="mr-2 h-4 w-4" />
+                          Return
+                        </Button>
+                      )}
+                    </TableCell>
+                  </TableRow>
+                ))
+              )}
             </TableBody>
           </Table>
         </CardContent>
       </Card>
 
-      {/* Return Asset Dialog */}
       <Dialog open={isReturnDialogOpen} onOpenChange={setIsReturnDialogOpen}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Return Asset</DialogTitle>
-            <DialogDescription>
-              Record the return of this asset
-            </DialogDescription>
+            <DialogDescription>Record the return of this asset</DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
             <div className="space-y-2">
@@ -320,9 +344,7 @@ export default function AssetAssignmentsPage() {
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setIsReturnDialogOpen(false)}>
-              Cancel
-            </Button>
+            <Button variant="outline" onClick={() => setIsReturnDialogOpen(false)}>Cancel</Button>
             <Button onClick={handleReturn} disabled={returnMutation.isPending}>
               {returnMutation.isPending ? 'Processing...' : 'Return Asset'}
             </Button>

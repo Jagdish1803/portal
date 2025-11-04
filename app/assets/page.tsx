@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { useQuery } from '@tanstack/react-query';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -24,7 +25,8 @@ import {
   Calendar,
   User,
   MoreHorizontal,
-  Settings
+  Settings,
+  Loader2
 } from 'lucide-react';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 
@@ -52,134 +54,56 @@ const CONDITIONS = [
   { value: 'POOR', label: 'Poor', color: 'bg-red-100 text-red-800' },
 ];
 
-// Mock data for assets
-const mockAssets = [
-  {
-    id: 1,
-    name: 'MacBook Pro 14"',
-    serialNumber: 'MBP-2024-001',
-    type: 'LAPTOP',
-    brand: 'Apple',
-    model: 'MacBook Pro 14" M3',
-    status: 'ASSIGNED',
-    condition: 'GOOD',
-    purchaseDate: new Date('2024-01-15'),
-    purchasePrice: 2499.00,
-    warranty: new Date('2027-01-15'),
-    assignedTo: 'John Doe',
-    assignedDate: new Date('2024-01-20'),
-    location: 'Office Floor 2',
-    lastMaintenance: new Date('2024-02-15'),
-    nextMaintenance: new Date('2024-08-15'),
-  },
-  {
-    id: 2,
-    name: 'Dell UltraSharp Monitor',
-    serialNumber: 'MON-2024-001',
-    type: 'DESKTOP',
-    brand: 'Dell',
-    model: 'UltraSharp 27" 4K',
-    status: 'AVAILABLE',
-    condition: 'NEW',
-    purchaseDate: new Date('2024-02-01'),
-    purchasePrice: 599.00,
-    warranty: new Date('2027-02-01'),
-    assignedTo: null,
-    assignedDate: null,
-    location: 'IT Storage Room',
-    lastMaintenance: null,
-    nextMaintenance: new Date('2024-08-01'),
-  },
-  {
-    id: 3,
-    name: 'iPhone 15 Pro',
-    serialNumber: 'IPH-2024-001',
-    type: 'MOBILE',
-    brand: 'Apple',
-    model: 'iPhone 15 Pro 256GB',
-    status: 'ASSIGNED',
-    condition: 'GOOD',
-    purchaseDate: new Date('2023-12-10'),
-    purchasePrice: 1199.00,
-    warranty: new Date('2024-12-10'),
-    assignedTo: 'Jane Smith',
-    assignedDate: new Date('2023-12-15'),
-    location: 'Remote',
-    lastMaintenance: null,
-    nextMaintenance: null,
-  },
-  {
-    id: 4,
-    name: 'HP LaserJet Pro',
-    serialNumber: 'PRT-2023-005',
-    type: 'PRINTER',
-    brand: 'HP',
-    model: 'LaserJet Pro MFP M428fdw',
-    status: 'MAINTENANCE',
-    condition: 'FAIR',
-    purchaseDate: new Date('2023-06-20'),
-    purchasePrice: 449.00,
-    warranty: new Date('2024-06-20'),
-    assignedTo: null,
-    assignedDate: null,
-    location: 'Office Floor 1',
-    lastMaintenance: new Date('2024-01-10'),
-    nextMaintenance: new Date('2024-04-10'),
-  },
-  {
-    id: 5,
-    name: 'Lenovo ThinkPad X1',
-    serialNumber: 'LTP-2022-015',
-    type: 'LAPTOP',
-    brand: 'Lenovo',
-    model: 'ThinkPad X1 Carbon',
-    status: 'RETIRED',
-    condition: 'POOR',
-    purchaseDate: new Date('2022-03-15'),
-    purchasePrice: 1899.00,
-    warranty: new Date('2024-03-15'),
-    assignedTo: null,
-    assignedDate: null,
-    location: 'Storage',
-    lastMaintenance: new Date('2023-10-15'),
-    nextMaintenance: null,
-  },
-];
-
 export default function AssetsPage() {
   const router = useRouter();
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('ALL');
   const [typeFilter, setTypeFilter] = useState('ALL');
 
-  const filteredAssets = mockAssets.filter(asset => {
-    const matchesSearch = 
-      asset.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      asset.serialNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      asset.brand.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (asset.assignedTo && asset.assignedTo.toLowerCase().includes(searchTerm.toLowerCase()));
-    
-    const matchesStatus = statusFilter === 'ALL' || asset.status === statusFilter;
-    const matchesType = typeFilter === 'ALL' || asset.type === typeFilter;
-    
-    return matchesSearch && matchesStatus && matchesType;
-  });
+  // Fetch assets from API
+  const { data: assetsData, isLoading } = useQuery({
+    queryKey: ['assets', searchTerm, statusFilter, typeFilter],
+    queryFn: async () => {
+      const params = new URLSearchParams()
+      if (searchTerm) params.append('search', searchTerm)
+      if (statusFilter !== 'ALL') params.append('status', statusFilter)
+      if (typeFilter !== 'ALL') params.append('assetType', typeFilter)
+      
+      const response = await fetch(`/api/assets?${params}`)
+      if (!response.ok) throw new Error('Failed to fetch assets')
+      return response.json()
+    },
+    refetchOnMount: 'always', // Always refetch when component mounts
+    refetchOnWindowFocus: true, // Refetch when window regains focus
+  })
 
-  const totalAssets = mockAssets.length;
-  const availableAssets = mockAssets.filter(a => a.status === 'AVAILABLE').length;
-  const assignedAssets = mockAssets.filter(a => a.status === 'ASSIGNED').length;
-  const maintenanceAssets = mockAssets.filter(a => a.status === 'MAINTENANCE').length;
-  const totalValue = mockAssets.reduce((sum, asset) => sum + asset.purchasePrice, 0);
+  const assets = assetsData?.data || []
+
+  const totalAssets = assets.length
+  const availableAssets = assets.filter((a: any) => a.status === 'AVAILABLE').length
+  const assignedAssets = assets.filter((a: any) => a.status === 'ASSIGNED').length
+  const maintenanceAssets = assets.filter((a: any) => a.status === 'MAINTENANCE').length
+  const totalValue = assets.reduce((sum: number, asset: any) => sum + (asset.purchasePrice || 0), 0)
 
   const getAssetTypeInfo = (type: string) => ASSET_TYPES.find(t => t.value === type);
   const getStatusInfo = (status: string) => ASSET_STATUSES.find(s => s.value === status);
   const getConditionInfo = (condition: string) => CONDITIONS.find(c => c.value === condition);
 
-  const isWarrantyExpiring = (warranty: Date) => {
-    const today = new Date();
-    const thirtyDaysFromNow = new Date(today.getTime() + 30 * 24 * 60 * 60 * 1000);
-    return warranty < thirtyDaysFromNow;
-  };
+  const isWarrantyExpiring = (warranty: string | null) => {
+    if (!warranty) return false
+    const warrantyDate = new Date(warranty)
+    const today = new Date()
+    const thirtyDaysFromNow = new Date(today.getTime() + 30 * 24 * 60 * 60 * 1000)
+    return warrantyDate < thirtyDaysFromNow
+  }
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      </div>
+    )
+  }
 
   return (
     <div className="space-y-6">
@@ -315,17 +239,20 @@ export default function AssetsPage() {
 
           {/* Assets List */}
           <div className="space-y-4">
-            {filteredAssets.length === 0 ? (
+            {assets.length === 0 ? (
               <div className="text-center py-8 text-muted-foreground">
                 No assets found matching your filters.
               </div>
             ) : (
-              filteredAssets.map((asset) => {
-                const typeInfo = getAssetTypeInfo(asset.type);
+              assets.map((asset: any) => {
+                const typeInfo = getAssetTypeInfo(asset.assetType);
                 const statusInfo = getStatusInfo(asset.status);
                 const conditionInfo = getConditionInfo(asset.condition);
                 const TypeIcon = typeInfo?.icon || Package;
                 const StatusIcon = statusInfo?.icon || Package;
+                
+                const activeAssignment = asset.assignments?.[0]
+                const assignedEmployee = activeAssignment?.employee
 
                 return (
                   <Card key={asset.id} className="p-6">
@@ -339,7 +266,7 @@ export default function AssetsPage() {
                         
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2 mb-1">
-                            <h3 className="text-lg font-semibold truncate">{asset.name}</h3>
+                            <h3 className="text-lg font-semibold truncate">{asset.assetName}</h3>
                             <Badge className={typeInfo?.color}>
                               {typeInfo?.label}
                             </Badge>
@@ -350,7 +277,7 @@ export default function AssetsPage() {
                             <Badge className={conditionInfo?.color}>
                               {conditionInfo?.label}
                             </Badge>
-                            {isWarrantyExpiring(asset.warranty) && (
+                            {isWarrantyExpiring(asset.warrantyExpiry) && (
                               <Badge className="bg-red-100 text-red-800">
                                 <AlertTriangle className="mr-1 h-3 w-3" />
                                 Warranty Expiring
@@ -359,40 +286,40 @@ export default function AssetsPage() {
                           </div>
                           
                           <p className="text-sm text-muted-foreground mb-2">
-                            {asset.brand} {asset.model} • SN: {asset.serialNumber}
+                            {asset.brand} {asset.model} • SN: {asset.serialNumber || 'N/A'} • Tag: {asset.assetTag || 'N/A'}
                           </p>
                           
                           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 text-sm text-muted-foreground">
                             <div>
                               <span className="font-medium">Purchase:</span>
                               <br />
-                              {asset.purchaseDate.toLocaleDateString()}
+                              {asset.purchaseDate ? new Date(asset.purchaseDate).toLocaleDateString() : 'N/A'}
                             </div>
                             <div>
                               <span className="font-medium">Value:</span>
                               <br />
-                              ${asset.purchasePrice.toLocaleString()}
+                              ${asset.purchasePrice?.toLocaleString() || '0'}
                             </div>
                             <div>
                               <span className="font-medium">Location:</span>
                               <br />
-                              {asset.location}
+                              {asset.location || 'N/A'}
                             </div>
                             <div>
                               <span className="font-medium">Warranty:</span>
                               <br />
-                              {asset.warranty.toLocaleDateString()}
+                              {asset.warrantyExpiry ? new Date(asset.warrantyExpiry).toLocaleDateString() : 'N/A'}
                             </div>
                           </div>
                           
-                          {asset.assignedTo && (
+                          {assignedEmployee && (
                             <div className="mt-2 p-2 bg-blue-50 rounded text-sm">
                               <span className="font-medium text-blue-800">
-                                Assigned to: {asset.assignedTo}
+                                Assigned to: {assignedEmployee.name} ({assignedEmployee.employeeCode})
                               </span>
-                              {asset.assignedDate && (
+                              {activeAssignment.assignmentDate && (
                                 <span className="text-blue-600 ml-2">
-                                  (Since {asset.assignedDate.toLocaleDateString()})
+                                  (Since {new Date(activeAssignment.assignmentDate).toLocaleDateString()})
                                 </span>
                               )}
                             </div>

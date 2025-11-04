@@ -7,7 +7,9 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Plus, UserPlus, Trash2, Tag as TagIcon } from 'lucide-react';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { Switch } from '@/components/ui/switch';
+import { Plus, UserPlus, MoreVertical, Pencil, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 
 interface Tag {
@@ -61,23 +63,73 @@ export default function TagAssignmentsPage() {
     }
   };
 
-  const handleDeleteAssignment = async (assignmentId: number) => {
-    if (!confirm('Are you sure you want to remove this assignment?')) return;
+  const handleToggleMandatory = async (assignment: Assignment) => {
+    const newMandatoryStatus = !assignment.isMandatory;
+    
+    // Optimistically update the UI
+    setAssignments(prev => 
+      prev.map(a => 
+        a.id === assignment.id 
+          ? { ...a, isMandatory: newMandatoryStatus } 
+          : a
+      )
+    );
 
+    try {
+      const response = await fetch(`/api/assignments?id=${assignment.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          isMandatory: newMandatoryStatus
+        })
+      });
+
+      if (response.ok) {
+        toast.success(`Marked as ${newMandatoryStatus ? 'Mandatory' : 'Optional'}`);
+      } else {
+        // Revert on error
+        setAssignments(prev => 
+          prev.map(a => 
+            a.id === assignment.id 
+              ? { ...a, isMandatory: assignment.isMandatory } 
+              : a
+          )
+        );
+        toast.error('Failed to update assignment');
+      }
+    } catch (error) {
+      // Revert on error
+      setAssignments(prev => 
+        prev.map(a => 
+          a.id === assignment.id 
+            ? { ...a, isMandatory: assignment.isMandatory } 
+            : a
+        )
+      );
+      console.error('Error updating assignment:', error);
+      toast.error('Failed to update assignment');
+    }
+  };
+
+  const handleEditAssignment = (assignment: Assignment) => {
+    router.push(`/tags/assignments/edit/${assignment.id}`);
+  };
+
+  const handleDeleteAssignment = async (assignmentId: number) => {
     try {
       const response = await fetch(`/api/assignments?id=${assignmentId}`, {
         method: 'DELETE'
       });
 
       if (response.ok) {
-        toast.success('Assignment removed');
+        toast.success('Assignment deleted');
         fetchData();
       } else {
-        toast.error('Failed to remove assignment');
+        toast.error('Failed to delete assignment');
       }
     } catch (error) {
       console.error('Error deleting assignment:', error);
-      toast.error('Failed to remove assignment');
+      toast.error('Failed to delete assignment');
     }
   };
 
@@ -141,7 +193,7 @@ export default function TagAssignmentsPage() {
             </div>
           ) : filteredAssignments.length === 0 ? (
             <div className="text-center py-12 text-muted-foreground">
-              <TagIcon className="h-12 w-12 mx-auto mb-4 text-gray-300" />
+              <UserPlus className="h-12 w-12 mx-auto mb-4 text-gray-300" />
               <p className="text-lg font-medium">No assignments found</p>
               <p className="text-sm mt-2">
                 {searchTerm ? 'No results match your search' : 'Create your first assignment by clicking the button above'}
@@ -170,34 +222,48 @@ export default function TagAssignmentsPage() {
                         </div>
                       </div>
                     </TableCell>
+                    <TableCell className="font-medium">
+                      {assignment.tag.tagName}
+                    </TableCell>
+                    <TableCell>{assignment.tag.timeMinutes} min</TableCell>
                     <TableCell>
                       <div className="flex items-center gap-2">
-                        <TagIcon className="h-4 w-4 text-blue-600" />
-                        <span className="font-medium">{assignment.tag.tagName}</span>
+                        <Switch
+                          checked={assignment.isMandatory}
+                          onCheckedChange={() => handleToggleMandatory(assignment)}
+                        />
+                        <span className="text-sm text-muted-foreground">
+                          {assignment.isMandatory ? 'Mandatory' : 'Optional'}
+                        </span>
                       </div>
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant="outline">
-                        {assignment.tag.timeMinutes} min
-                      </Badge>
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant={assignment.isMandatory ? 'default' : 'secondary'}>
-                        {assignment.isMandatory ? 'Mandatory' : 'Optional'}
-                      </Badge>
                     </TableCell>
                     <TableCell>
                       {new Date(assignment.createdAt).toLocaleDateString()}
                     </TableCell>
                     <TableCell className="text-right">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleDeleteAssignment(assignment.id)}
-                        className="text-red-600 hover:text-red-700 hover:bg-red-50"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" size="icon" className="h-8 w-8">
+                            <MoreVertical className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" className="w-32">
+                          <DropdownMenuItem 
+                            onClick={() => handleEditAssignment(assignment)}
+                            className="text-sm cursor-pointer"
+                          >
+                            <Pencil className="mr-2 h-3.5 w-3.5" />
+                            Edit
+                          </DropdownMenuItem>
+                          <DropdownMenuItem 
+                            onClick={() => handleDeleteAssignment(assignment.id)}
+                            className="text-sm text-red-600 focus:text-red-600 cursor-pointer"
+                          >
+                            <Trash2 className="mr-2 h-3.5 w-3.5" />
+                            Delete
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
                     </TableCell>
                   </TableRow>
                 ))}

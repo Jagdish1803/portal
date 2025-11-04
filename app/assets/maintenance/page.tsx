@@ -1,7 +1,7 @@
-'use client'
+﻿'use client'
 
 import { useState } from 'react'
-import { useQuery, useMutation } from '@tanstack/react-query'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
@@ -11,30 +11,11 @@ import { Label } from '@/components/ui/label'
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
-import { Wrench, Plus } from 'lucide-react'
+import { Wrench, Plus, Loader2 } from 'lucide-react'
 import { toast } from 'sonner'
 
-const mockMaintenanceLogs = [
-  {
-    id: 1,
-    assetId: 1,
-    assetName: 'MacBook Pro 16"',
-    maintenanceType: 'ROUTINE_MAINTENANCE',
-    description: 'Battery replacement and cleaning',
-    maintenanceDate: '2024-10-01',
-    cost: 250,
-    performedBy: 'Tech Support',
-    nextDueDate: '2025-04-01',
-    notes: 'Battery health was at 75%'
-  }
-]
-
-const mockAssets = [
-  { id: 1, name: 'MacBook Pro 16"', serialNumber: 'MBP2024001' },
-  { id: 2, name: 'Dell Monitor 27"', serialNumber: 'MON2024002' }
-]
-
 export default function AssetMaintenancePage() {
+  const queryClient = useQueryClient()
   const [isDialogOpen, setIsDialogOpen] = useState(false)
   const [newMaintenance, setNewMaintenance] = useState({
     assetId: '',
@@ -47,21 +28,44 @@ export default function AssetMaintenancePage() {
     notes: ''
   })
 
-  const { data: logs, isLoading } = useQuery({
+  const { data: logsData, isLoading } = useQuery({
     queryKey: ['maintenance-logs'],
     queryFn: async () => {
-      await new Promise(resolve => setTimeout(resolve, 1000))
-      return mockMaintenanceLogs
+      const response = await fetch('/api/assets/maintenance')
+      if (!response.ok) throw new Error('Failed to fetch maintenance logs')
+      return response.json()
     }
   })
 
+  const { data: assetsData } = useQuery({
+    queryKey: ['assets'],
+    queryFn: async () => {
+      const response = await fetch('/api/assets')
+      if (!response.ok) throw new Error('Failed to fetch assets')
+      return response.json()
+    }
+  })
+
+  const logs = logsData?.data || []
+  const assets = assetsData?.data || []
+
   const addMaintenanceMutation = useMutation({
     mutationFn: async (data: typeof newMaintenance) => {
-      await new Promise(resolve => setTimeout(resolve, 1500))
-      return { success: true }
+      const response = await fetch('/api/assets/maintenance', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      })
+      if (!response.ok) {
+        const error = await response.json()
+        throw new Error(error.error || 'Failed to add maintenance record')
+      }
+      return response.json()
     },
     onSuccess: () => {
       toast.success('Maintenance record added successfully!')
+      queryClient.invalidateQueries({ queryKey: ['maintenance-logs'] })
+      queryClient.invalidateQueries({ queryKey: ['assets'] })
       setIsDialogOpen(false)
       setNewMaintenance({
         assetId: '',
@@ -74,8 +78,8 @@ export default function AssetMaintenancePage() {
         notes: ''
       })
     },
-    onError: () => {
-      toast.error('Failed to add maintenance record')
+    onError: (error: any) => {
+      toast.error(error.message || 'Failed to add maintenance record')
     }
   })
 
@@ -85,6 +89,14 @@ export default function AssetMaintenancePage() {
       return
     }
     addMaintenanceMutation.mutate(newMaintenance)
+  }
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      </div>
+    )
   }
 
   const maintenanceTypeColors: Record<string, string> = {
@@ -131,9 +143,9 @@ export default function AssetMaintenancePage() {
                       <SelectValue placeholder="Choose an asset" />
                     </SelectTrigger>
                     <SelectContent>
-                      {mockAssets.map(asset => (
+                      {assets.map((asset: any) => (
                         <SelectItem key={asset.id} value={String(asset.id)}>
-                          {asset.name} (S/N: {asset.serialNumber})
+                          {asset.assetName} (S/N: {asset.serialNumber || 'N/A'})
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -227,7 +239,6 @@ export default function AssetMaintenancePage() {
         </Dialog>
       </div>
 
-      {/* Statistics */}
       <div className="grid gap-4 md:grid-cols-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -235,7 +246,7 @@ export default function AssetMaintenancePage() {
             <Wrench className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{logs?.length || 0}</div>
+            <div className="text-2xl font-bold">{logs.length || 0}</div>
           </CardContent>
         </Card>
         <Card>
@@ -245,7 +256,7 @@ export default function AssetMaintenancePage() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-green-600">
-              ${logs?.reduce((sum, log) => sum + log.cost, 0).toLocaleString()}
+              ${logs.reduce((sum: number, log: any) => sum + (log.cost || 0), 0).toLocaleString()}
             </div>
           </CardContent>
         </Card>
@@ -256,7 +267,7 @@ export default function AssetMaintenancePage() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-red-600">
-              {logs?.filter(l => l.maintenanceType === 'REPAIR').length || 0}
+              {logs.filter((l: any) => l.type === 'REPAIR').length || 0}
             </div>
           </CardContent>
         </Card>
@@ -267,13 +278,12 @@ export default function AssetMaintenancePage() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-blue-600">
-              {logs?.filter(l => l.maintenanceType === 'UPGRADE').length || 0}
+              {logs.filter((l: any) => l.type === 'UPGRADE').length || 0}
             </div>
           </CardContent>
         </Card>
       </div>
 
-      {/* Maintenance Log */}
       <Card>
         <CardHeader>
           <CardTitle>Maintenance History</CardTitle>
@@ -295,23 +305,31 @@ export default function AssetMaintenancePage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {logs?.map((log) => (
-                <TableRow key={log.id}>
-                  <TableCell className="font-medium">{log.assetName}</TableCell>
-                  <TableCell>
-                    <Badge className={maintenanceTypeColors[log.maintenanceType] || ''}>
-                      {log.maintenanceType.replace(/_/g, ' ')}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="max-w-xs truncate">{log.description}</TableCell>
-                  <TableCell>{new Date(log.maintenanceDate).toLocaleDateString()}</TableCell>
-                  <TableCell>${log.cost.toLocaleString()}</TableCell>
-                  <TableCell>{log.performedBy}</TableCell>
-                  <TableCell>
-                    {log.nextDueDate ? new Date(log.nextDueDate).toLocaleDateString() : '-'}
+              {logs.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={7} className="text-center text-muted-foreground">
+                    No maintenance records found
                   </TableCell>
                 </TableRow>
-              ))}
+              ) : (
+                logs.map((log: any) => (
+                  <TableRow key={log.id}>
+                    <TableCell className="font-medium">{log.asset.assetName}</TableCell>
+                    <TableCell>
+                      <Badge className={maintenanceTypeColors[log.type] || ''}>
+                        {log.type.replace(/_/g, ' ')}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="max-w-xs truncate">{log.description}</TableCell>
+                    <TableCell>{new Date(log.date).toLocaleDateString()}</TableCell>
+                    <TableCell>${log.cost?.toLocaleString() || '0'}</TableCell>
+                    <TableCell>{log.performedBy || '-'}</TableCell>
+                    <TableCell>
+                      {log.nextDueDate ? new Date(log.nextDueDate).toLocaleDateString() : '-'}
+                    </TableCell>
+                  </TableRow>
+                ))
+              )}
             </TableBody>
           </Table>
         </CardContent>

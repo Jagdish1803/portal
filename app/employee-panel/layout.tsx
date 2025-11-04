@@ -36,6 +36,24 @@ export default function EmployeePanelLayout({
       ]
     }
 
+    // Special handling for my-tags routes (Work & Tasks)
+    if (pathname.startsWith('/employee-panel/my-tags')) {
+      const breadcrumbs = [
+        { label: 'Dashboard', href: '/employee-panel', isCurrentPage: false },
+      ]
+      
+      // Check if we're on history page
+      if (pathname.includes('/history')) {
+        breadcrumbs.push({ label: 'Work & Tasks', href: '/employee-panel/my-tags', isCurrentPage: false })
+        breadcrumbs.push({ label: 'View History', href: '/employee-panel/my-tags/history', isCurrentPage: true })
+      } else {
+        // For submit or base my-tags page, just show "Work & Tasks"
+        breadcrumbs.push({ label: 'Work & Tasks', href: '/employee-panel/my-tags', isCurrentPage: true })
+      }
+      
+      return breadcrumbs
+    }
+
     // Default breadcrumb generation for other routes
     const segments = pathname.split('/').filter(Boolean)
     const breadcrumbs = [{ label: 'Dashboard', href: '/employee-panel', isCurrentPage: false }]

@@ -1,21 +1,23 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { PrismaClient } from '@prisma/client'
+import { prisma } from '@/lib/prisma'
 import bcrypt from 'bcryptjs'
-
-const prisma = new PrismaClient()
 
 // GET /api/employees - Get all employees with filters
 export async function GET(request: NextRequest) {
   try {
     const searchParams = request.nextUrl.searchParams
     const search = searchParams.get('search')
+    const clerkUserId = searchParams.get('clerkUserId')
     const department = searchParams.get('department')
     const role = searchParams.get('role')
     const isActive = searchParams.get('isActive')
 
     const where: any = {}
 
-    if (search) {
+    // Priority: clerkUserId lookup
+    if (clerkUserId) {
+      where.clerkUserId = clerkUserId
+    } else if (search) {
       where.OR = [
         { name: { contains: search, mode: 'insensitive' } },
         { email: { contains: search, mode: 'insensitive' } },

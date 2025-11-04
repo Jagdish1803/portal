@@ -7,9 +7,10 @@ import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
-import { ArrowLeft, Loader2, Users } from 'lucide-react';
+import { ArrowLeft, Loader2, Users, Search } from 'lucide-react';
 import { toast } from 'sonner';
 import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
 
 interface Tag {
   id: number;
@@ -38,6 +39,7 @@ export default function CreateAssignmentPage() {
   const [selectedEmployee, setSelectedEmployee] = useState('');
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [isMandatory, setIsMandatory] = useState(false);
+  const [searchTag, setSearchTag] = useState('');
 
   const toggleTag = (tagId: string) => {
     setSelectedTags(prev => 
@@ -119,6 +121,10 @@ export default function CreateAssignmentPage() {
     );
   };
 
+  const filteredTags = tags.filter(tag => 
+    tag.tagName.toLowerCase().includes(searchTag.toLowerCase())
+  );
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -191,19 +197,32 @@ export default function CreateAssignmentPage() {
                     </span>
                   )}
                 </Label>
-                <div className="flex flex-wrap gap-2 p-4 border rounded-md min-h-[120px] bg-background">
-                  {tags.length === 0 ? (
+                
+                {/* Search Bar */}
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    type="text"
+                    placeholder="Search tags..."
+                    value={searchTag}
+                    onChange={(e) => setSearchTag(e.target.value)}
+                    className="pl-9"
+                  />
+                </div>
+                
+                <div className="flex flex-wrap gap-1.5 p-4 border rounded-md min-h-[120px] bg-background">
+                  {filteredTags.length === 0 ? (
                     <div className="w-full text-center text-sm text-muted-foreground py-8">
-                      No tags available
+                      {searchTag ? 'No tags found matching your search' : 'No tags available'}
                     </div>
                   ) : (
-                    tags.map((tag) => (
+                    filteredTags.map((tag) => (
                       <button
                         key={tag.id}
                         type="button"
                         onClick={() => toggleTag(tag.id.toString())}
                         className={`
-                          px-3 py-1.5 rounded-md text-sm font-medium transition-colors
+                          px-2 py-1 rounded text-xs font-medium transition-colors
                           ${selectedTags.includes(tag.id.toString())
                             ? 'bg-primary text-primary-foreground hover:bg-primary/90'
                             : 'bg-secondary text-secondary-foreground hover:bg-secondary/80'

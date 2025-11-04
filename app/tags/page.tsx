@@ -8,7 +8,7 @@ import { Badge } from '@/components/ui/badge'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
-import { Search, Plus, Edit, Trash2, Tag, Download, MoreVertical } from 'lucide-react'
+import { Search, Plus, Edit, Trash2, Tag, MoreVertical, UserCheck, FileText } from 'lucide-react'
 import Link from 'next/link'
 
 interface TagData {
@@ -26,8 +26,8 @@ interface TagData {
 
 export default function TagsPage() {
   const [searchTerm, setSearchTerm] = useState('')
-  const [categoryFilter, setCategoryFilter] = useState('all')
-  const [statusFilter, setStatusFilter] = useState('all')
+  const [currentPage, setCurrentPage] = useState(1)
+  const [itemsPerPage, setItemsPerPage] = useState(10)
 
   const { data: tagsResponse, isLoading } = useQuery({
     queryKey: ['tags'],
@@ -42,13 +42,45 @@ export default function TagsPage() {
 
   const tags = tagsResponse?.data || []
 
-  const filteredTags = tags.filter((tag: TagData) => {
-    const matchesSearch = tag.tagName.toLowerCase().includes(searchTerm.toLowerCase())
-    const matchesCategory = categoryFilter === 'all' || tag.category === categoryFilter
-    const matchesStatus = statusFilter === 'all' || (statusFilter === 'active' ? tag.isActive : !tag.isActive)
+  // Calculate totals
+  const totalAssignments = tags.reduce((sum: number, tag: TagData) => sum + (tag._count?.assignments || 0), 0)
+  const totalWorkLogs = tags.reduce((sum: number, tag: TagData) => sum + (tag._count?.logs || 0), 0)
 
-    return matchesSearch && matchesCategory && matchesStatus
+  const filteredTags = tags.filter((tag: TagData) => {
+    return tag.tagName.toLowerCase().includes(searchTerm.toLowerCase())
   })
+
+  // Pagination
+  const totalPages = Math.ceil(filteredTags.length / itemsPerPage)
+  const startIndex = (currentPage - 1) * itemsPerPage
+  const endIndex = startIndex + itemsPerPage
+  const paginatedTags = filteredTags.slice(startIndex, endIndex)
+
+  // Reset to page 1 when search changes
+  const handleSearchChange = (value: string) => {
+    setSearchTerm(value)
+    setCurrentPage(1)
+  }
+
+  // Generate page numbers to show
+  const getPageNumbers = () => {
+    const pages = []
+    const maxVisible = 5
+    
+    if (totalPages <= maxVisible) {
+      return Array.from({ length: totalPages }, (_, i) => i + 1)
+    }
+    
+    if (currentPage <= 3) {
+      return [1, 2, 3, '...', totalPages]
+    }
+    
+    if (currentPage >= totalPages - 2) {
+      return [1, '...', totalPages - 2, totalPages - 1, totalPages]
+    }
+    
+    return [1, '...', currentPage - 1, currentPage, currentPage + 1, '...', totalPages]
+  }
 
   const getCategoryBadge = (category: string) => {
     const categoryColors = {
@@ -103,22 +135,16 @@ export default function TagsPage() {
             {filteredTags.length} tags
           </p>
         </div>
-        <div className="flex space-x-2">
-          <Button variant="outline">
-            <Download className="mr-2 h-4 w-4" />
-            Export
-          </Button>
-          <Button asChild>
-            <Link href="/tags/create">
-              <Plus className="mr-2 h-4 w-4" />
-              Create Tag
-            </Link>
-          </Button>
-        </div>
+        <Button asChild>
+          <Link href="/tags/create">
+            <Plus className="mr-2 h-4 w-4" />
+            Create Tag
+          </Link>
+        </Button>
       </div>
 
       {/* Stats */}
-      <div className="grid gap-4 md:grid-cols-2">
+      <div className="grid gap-4 md:grid-cols-3">
         <div className="bg-white p-4 rounded-lg border">
           <div className="flex items-center justify-between">
             <div>
@@ -131,53 +157,36 @@ export default function TagsPage() {
         <div className="bg-white p-4 rounded-lg border">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-muted-foreground">Active Tags</p>
-              <p className="text-2xl font-bold text-green-600">
-                {tags?.filter((t: TagData) => t.isActive).length || 0}
+              <p className="text-sm text-muted-foreground">Total Assignments</p>
+              <p className="text-2xl font-bold text-purple-600">
+                {totalAssignments}
               </p>
             </div>
-            <Tag className="h-8 w-8 text-green-500" />
+            <UserCheck className="h-8 w-8 text-purple-500" />
+          </div>
+        </div>
+        <div className="bg-white p-4 rounded-lg border">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-muted-foreground">Total Work Logs</p>
+              <p className="text-2xl font-bold text-green-600">
+                {totalWorkLogs}
+              </p>
+            </div>
+            <FileText className="h-8 w-8 text-green-500" />
           </div>
         </div>
       </div>
 
-      {/* Filters */}
-      <div className="flex flex-col md:flex-row gap-4 bg-white p-4 rounded-lg border">
-        <div className="flex items-center space-x-2 flex-1">
-          <Search className="h-4 w-4 text-muted-foreground" />
-          <Input
-            placeholder="Search tags..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="flex-1"
-          />
-        </div>
-
-        <Select value={categoryFilter} onValueChange={setCategoryFilter}>
-          <SelectTrigger className="w-[180px]">
-            <SelectValue placeholder="Category" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Categories</SelectItem>
-            <SelectItem value="Development">Development</SelectItem>
-            <SelectItem value="Quality Assurance">Quality Assurance</SelectItem>
-            <SelectItem value="Communication">Communication</SelectItem>
-            <SelectItem value="Documentation">Documentation</SelectItem>
-            <SelectItem value="Testing">Testing</SelectItem>
-            <SelectItem value="Deployment">Deployment</SelectItem>
-          </SelectContent>
-        </Select>
-
-        <Select value={statusFilter} onValueChange={setStatusFilter}>
-          <SelectTrigger className="w-[160px]">
-            <SelectValue placeholder="Status" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Status</SelectItem>
-            <SelectItem value="active">Active</SelectItem>
-            <SelectItem value="inactive">Inactive</SelectItem>
-          </SelectContent>
-        </Select>
+      {/* Search */}
+      <div className="flex items-center space-x-2 bg-white p-4 rounded-lg border">
+        <Search className="h-4 w-4 text-muted-foreground" />
+        <Input
+          placeholder="Search tags..."
+          value={searchTerm}
+          onChange={(e) => handleSearchChange(e.target.value)}
+          className="flex-1"
+        />
       </div>
 
       {/* Tags Table */}
@@ -199,8 +208,8 @@ export default function TagsPage() {
                     <Tag className="h-12 w-12 text-muted-foreground/30 mb-3" />
                     <p className="text-muted-foreground font-medium">No tags found</p>
                     <p className="text-sm text-muted-foreground">
-                      {searchTerm || categoryFilter !== 'all' || statusFilter !== 'all' 
-                        ? 'Try adjusting your search or filters'
+                      {searchTerm 
+                        ? 'Try adjusting your search'
                         : 'Get started by creating your first tag'
                       }
                     </p>
@@ -208,7 +217,7 @@ export default function TagsPage() {
                 </TableCell>
               </TableRow>
             ) : (
-              filteredTags.map((tag: TagData) => (
+              paginatedTags.map((tag: TagData) => (
                 <TableRow key={tag.id} className="hover:bg-muted/30 transition-colors">
                   <TableCell className="font-medium w-[35%]">{tag.tagName}</TableCell>
                   <TableCell className="w-[25%]">
@@ -254,6 +263,72 @@ export default function TagsPage() {
             )}
           </TableBody>
         </Table>
+
+        {/* Pagination */}
+        {filteredTags.length > 0 && (
+          <div className="flex items-center justify-between px-6 py-4 border-t bg-muted/30">
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-muted-foreground">Show</span>
+              <Select value={itemsPerPage.toString()} onValueChange={(value) => {
+                setItemsPerPage(parseInt(value))
+                setCurrentPage(1)
+              }}>
+                <SelectTrigger className="w-[70px] h-9">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="10">10</SelectItem>
+                  <SelectItem value="25">25</SelectItem>
+                  <SelectItem value="50">50</SelectItem>
+                  <SelectItem value="100">100</SelectItem>
+                </SelectContent>
+              </Select>
+              <span className="text-sm text-muted-foreground">entries</span>
+            </div>
+
+            <div className="text-sm text-muted-foreground">
+              Showing {startIndex + 1} to {Math.min(endIndex, filteredTags.length)} of {filteredTags.length} entries
+            </div>
+
+            <div className="flex items-center gap-1">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                disabled={currentPage === 1}
+                className="h-9 px-3"
+              >
+                Previous
+              </Button>
+              
+              {getPageNumbers().map((page, index) => (
+                page === '...' ? (
+                  <span key={`ellipsis-${index}`} className="px-2 text-muted-foreground">...</span>
+                ) : (
+                  <Button
+                    key={page}
+                    variant={currentPage === page ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => setCurrentPage(page as number)}
+                    className="h-9 w-9"
+                  >
+                    {page}
+                  </Button>
+                )
+              ))}
+
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                disabled={currentPage === totalPages}
+                className="h-9 px-3"
+              >
+                Next
+              </Button>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   )

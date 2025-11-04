@@ -132,6 +132,62 @@ export async function POST(request: NextRequest) {
   }
 }
 
+// PATCH /api/assignments - Update assignment
+export async function PATCH(request: NextRequest) {
+  try {
+    const searchParams = request.nextUrl.searchParams
+    const id = searchParams.get('id')
+
+    if (!id) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: 'Assignment ID is required',
+        },
+        { status: 400 }
+      )
+    }
+
+    const body = await request.json()
+    const { isMandatory } = body
+
+    const assignment = await prisma.assignment.update({
+      where: { id: parseInt(id) },
+      data: {
+        isMandatory,
+      },
+      include: {
+        employee: {
+          select: {
+            id: true,
+            name: true,
+            employeeCode: true,
+            email: true,
+            role: true,
+          },
+        },
+        tag: true,
+      },
+    })
+
+    return NextResponse.json({
+      success: true,
+      data: assignment,
+      message: 'Assignment updated successfully',
+    })
+  } catch (error: any) {
+    console.error('Error updating assignment:', error)
+    return NextResponse.json(
+      {
+        success: false,
+        error: 'Failed to update assignment',
+        message: error.message,
+      },
+      { status: 500 }
+    )
+  }
+}
+
 // DELETE /api/assignments - Delete assignment(s)
 export async function DELETE(request: NextRequest) {
   try {

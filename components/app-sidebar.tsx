@@ -19,6 +19,7 @@ import {
   Settings2,
   Package,
   UserCircle,
+  Coffee,
 } from "lucide-react"
 
 import { NavMain } from "@/components/nav-main"
@@ -114,10 +115,6 @@ const data = {
       icon: Tag,
       items: [
         {
-          title: "All Tags",
-          url: "/tags",
-        },
-        {
           title: "Tag Assignments",
           url: "/tags/assignments",
         },
@@ -128,41 +125,10 @@ const data = {
       ],
     },
     {
-      title: "Leave Management",
-      url: "/leave",
-      icon: Calendar,
-      items: [
-        {
-          title: "All Leave Requests",
-          url: "/leave",
-        },
-        {
-          title: "Apply for Leave",
-          url: "/leave/apply",
-        },
-        {
-          title: "Leave History",
-          url: "/leave/history",
-        },
-        {
-          title: "Approve Leaves",
-          url: "/leave/approve",
-        },
-      ],
-    },
-    {
       title: "Asset Management",
       url: "/assets",
       icon: Briefcase,
       items: [
-        {
-          title: "All Assets",
-          url: "/assets",
-        },
-        {
-          title: "Add Asset",
-          url: "/assets/add",
-        },
         {
           title: "Asset Assignments",
           url: "/assets/assignments",
@@ -174,25 +140,13 @@ const data = {
       ],
     },
     {
-      title: "Reports & Analytics",
-      url: "/reports",
-      icon: BarChart3,
+      title: "Break Management",
+      url: "/admin/breaks",
+      icon: Coffee,
       items: [
         {
-          title: "Analytics Dashboard",
-          url: "/reports",
-        },
-        {
-          title: "Productivity Reports",
-          url: "/reports/productivity",
-        },
-        {
-          title: "Flowace Integration",
-          url: "/reports/flowace",
-        },
-        {
-          title: "Export Reports",
-          url: "/reports/export",
+          title: "Employee Breaks",
+          url: "/admin/breaks/employees",
         },
       ],
     },
@@ -200,24 +154,6 @@ const data = {
       title: "Admin Management",
       url: "/admin",
       icon: Shield,
-      items: [
-        {
-          title: "Warnings & Penalties",
-          url: "/admin",
-        },
-        {
-          title: "Notifications",
-          url: "/admin/notifications",
-        },
-        {
-          title: "System Settings",
-          url: "/admin/settings",
-        },
-        {
-          title: "Import Logs",
-          url: "/admin/import-logs",
-        },
-      ],
     },
   ],
   navSecondary: [
@@ -260,7 +196,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
     if (userRole === 'EMPLOYEE') {
       // Employees should not see admin features
       return data.navMain.filter(item => 
-        !['Admin Management', 'Employees', 'Reports & Analytics'].includes(item.title)
+        !['Admin Management', 'Employees', 'Break Management'].includes(item.title)
       )
     }
     // ADMIN and TEAMLEADER see everything

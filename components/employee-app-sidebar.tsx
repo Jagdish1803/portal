@@ -12,6 +12,7 @@ import {
   Clock,
   Shield,
   ArrowLeft,
+  Coffee,
 } from "lucide-react"
 
 import { NavMain } from "@/components/nav-main"
@@ -42,32 +43,24 @@ const data = {
       icon: CalendarCheck,
     },
     {
-      title: "My Leaves",
-      url: "/employee-panel/my-leaves",
-      icon: Clock,
+      title: "Work & Tasks",
+      url: "/employee-panel/my-tags/submit",
+      icon: Tags,
       items: [
         {
-          title: "Apply Leave",
-          url: "/employee-panel/my-leaves/apply",
-        },
-        {
-          title: "Leave History",
-          url: "/employee-panel/my-leaves/history",
+          title: "View History",
+          url: "/employee-panel/my-tags/history",
         },
       ],
     },
     {
-      title: "My Tags & Work",
-      url: "/employee-panel/my-tags",
-      icon: Tags,
+      title: "Break",
+      url: "/employee-panel/break",
+      icon: Coffee,
       items: [
         {
-          title: "Submit Logs",
-          url: "/employee-panel/my-tags/submit",
-        },
-        {
           title: "View History",
-          url: "/employee-panel/my-tags/history",
+          url: "/employee-panel/break/history",
         },
       ],
     },

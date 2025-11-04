@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { useMutation } from '@tanstack/react-query'
+import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -32,6 +32,7 @@ interface AssetFormData {
 
 export default function AddAssetPage() {
   const router = useRouter()
+  const queryClient = useQueryClient()
   const [formData, setFormData] = useState<AssetFormData>({
     assetName: '',
     assetType: 'LAPTOP',
@@ -51,15 +52,26 @@ export default function AddAssetPage() {
 
   const createAssetMutation = useMutation({
     mutationFn: async (data: AssetFormData) => {
-      await new Promise(resolve => setTimeout(resolve, 2000))
-      return { success: true, assetId: Date.now() }
+      const response = await fetch('/api/assets', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      })
+      if (!response.ok) {
+        const error = await response.json()
+        throw new Error(error.error || 'Failed to create asset')
+      }
+      return response.json()
     },
     onSuccess: () => {
       toast.success('Asset created successfully!')
+      // Invalidate assets queries to refresh the list
+      queryClient.invalidateQueries({ queryKey: ['assets'] })
+      queryClient.invalidateQueries({ queryKey: ['available-assets'] })
       router.push('/assets')
     },
-    onError: () => {
-      toast.error('Failed to create asset')
+    onError: (error: any) => {
+      toast.error(error.message || 'Failed to create asset')
     }
   })
 
