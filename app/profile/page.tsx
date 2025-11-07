@@ -26,12 +26,19 @@ export default function ProfilePage() {
   const [profileSettings, setProfileSettings] = useState({
     name: '',
     email: '',
-    phone: '+91',
+    phone: '',
     dateOfBirth: '',
     education: '',
     motherName: '',
     address: '',
     profilePhoto: '/api/placeholder/80/80'
+  })
+
+  const [validationErrors, setValidationErrors] = useState({
+    phone: '',
+    education: '',
+    motherName: '',
+    address: ''
   })
 
   const [documents, setDocuments] = useState<{
@@ -142,6 +149,34 @@ export default function ProfilePage() {
       // Fallback to default photo
       setProfileSettings(prev => ({ ...prev, profilePhoto: user?.imageUrl || '/api/placeholder/80/80' }))
     }
+  }
+
+  // Validation functions
+  const validatePhone = (phone: string): string => {
+    if (!phone) return ''
+    if (phone.length !== 10) return 'Phone number must be exactly 10 digits'
+    if (!/^\d{10}$/.test(phone)) return 'Phone number must contain only digits'
+    return ''
+  }
+
+  const validateEducation = (education: string): string => {
+    if (!education) return ''
+    if (education.length > 20) return 'Maximum 20 characters allowed'
+    if (!/^[a-zA-Z\s.,\-]*$/.test(education)) return 'Only letters, spaces, dots, commas, and hyphens allowed'
+    return ''
+  }
+
+  const validateMotherName = (motherName: string): string => {
+    if (!motherName) return ''
+    if (motherName.length > 50) return 'Maximum 50 characters allowed'
+    if (!/^[a-zA-Z\s]*$/.test(motherName)) return 'Only letters and spaces allowed'
+    return ''
+  }
+
+  const validateAddress = (address: string): string => {
+    if (!address) return ''
+    if (address.length > 60) return 'Maximum 60 characters allowed'
+    return ''
   }
 
   const saveProfileMutation = useMutation({
@@ -334,38 +369,34 @@ export default function ProfilePage() {
     toast.success('Photo selected. Click "Save Profile" to upload.')
   }
 
-  const handleDeletePhoto = async () => {
-    console.log('handleDeletePhoto called')
-    console.log('profileData?.profilePhoto:', profileData?.profilePhoto)
+  const handleDeletePhoto = async (e?: React.MouseEvent) => {
+    if (e) {
+      e.preventDefault()
+      e.stopPropagation()
+    }
     
-    // Delete from Supabase bucket if photo exists
-    if (profileData?.profilePhoto && typeof profileData.profilePhoto === 'string' && !profileData.profilePhoto.startsWith('http')) {
-      console.log('Attempting to delete photo from bucket:', profileData.profilePhoto)
-      try {
-        const { error } = await supabase.storage
+    console.log('=== handleDeletePhoto FIRED ===')
+    console.log('profileData:', profileData)
+    console.log('profileData?.profilePhoto:', profileData?.profilePhoto)
+    console.log('profileSettings.profilePhoto:', profileSettings.profilePhoto)
+    
+    try {
+      // Delete from Supabase bucket if photo exists
+      if (profileData?.profilePhoto && typeof profileData.profilePhoto === 'string') {
+        console.log('Attempting to delete photo from bucket:', profileData.profilePhoto)
+        const { error: deleteError } = await supabase.storage
           .from('employee-documents')
           .remove([profileData.profilePhoto])
         
-        if (error) {
-          console.error('Error deleting photo from bucket:', error)
+        if (deleteError) {
+          console.error('Error deleting photo from bucket:', deleteError)
         } else {
-          console.log('Photo deleted from bucket successfully')
+          console.log('✅ Photo deleted from bucket successfully')
         }
-      } catch (error) {
-        console.error('Error deleting photo:', error)
       }
-    }
-    
-    // Reset to default
-    console.log('Resetting photo to default')
-    setProfileSettings(prev => ({
-      ...prev,
-      profilePhoto: user?.imageUrl || '/api/placeholder/80/80'
-    }))
-    
-    // Update database immediately to remove photo
-    try {
-      console.log('Updating database to remove photo')
+      
+      // Update database immediately to remove photo
+      console.log('Updating database to remove photo...')
       const response = await fetch('/api/profile/documents', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -376,15 +407,26 @@ export default function ProfilePage() {
         })
       })
       
+      const result = await response.json()
+      console.log('API response:', result)
+      
       if (!response.ok) {
         throw new Error('Failed to update database')
       }
       
-      console.log('Database updated successfully')
+      // Reset to default
+      console.log('Resetting photo to default')
+      setProfileSettings(prev => ({
+        ...prev,
+        profilePhoto: user?.imageUrl || '/api/placeholder/80/80'
+      }))
+      
+      console.log('✅ Database updated successfully')
       toast.success('Photo removed successfully!')
-      refetch()
+      await refetch()
+      console.log('✅ Data refetched')
     } catch (error) {
-      console.error('Error updating database:', error)
+      console.error('❌ Error in handleDeletePhoto:', error)
       toast.error('Failed to remove photo')
     }
   }
@@ -530,11 +572,7 @@ export default function ProfilePage() {
                   variant="ghost" 
                   size="sm"
                   type="button"
-                  onClick={(e) => {
-                    e.preventDefault()
-                    e.stopPropagation()
-                    handleDeletePhoto()
-                  }}
+                  onClick={handleDeletePhoto}
                   className="text-red-600 hover:text-red-700 hover:bg-red-50 h-8"
                 >
                   <Trash2 className="h-3 w-3 mr-1" />
@@ -576,12 +614,19 @@ export default function ProfilePage() {
                   const digitsOnly = value.replace(/\D/g, '')
                   if (digitsOnly.length <= 10) {
                     setProfileSettings({...profileSettings, phone: digitsOnly})
+                    setValidationErrors(prev => ({ ...prev, phone: validatePhone(digitsOnly) }))
                   }
                 }}
                 placeholder="9876543210"
                 maxLength={10}
+                className={validationErrors.phone ? 'border-red-500 focus-visible:ring-red-500' : ''}
               />
-              <p className="text-xs text-muted-foreground">10 digits only (Indian mobile number)</p>
+              {validationErrors.phone && (
+                <p className="text-xs text-red-600">{validationErrors.phone}</p>
+              )}
+              {!validationErrors.phone && (
+                <p className="text-xs text-muted-foreground">10 digits only (Indian mobile number)</p>
+              )}
             </div>
             <div className="space-y-2">
               <Label>Date of Birth</Label>
@@ -598,15 +643,19 @@ export default function ProfilePage() {
                 value={profileSettings.education}
                 onChange={(e) => {
                   const value = e.target.value
-                  // Only allow letters, spaces, dots, commas, and hyphens, max 20 characters
-                  if (/^[a-zA-Z\s.,\-]*$/.test(value) && value.length <= 20) {
-                    setProfileSettings({...profileSettings, education: value})
-                  }
+                  setProfileSettings({...profileSettings, education: value})
+                  setValidationErrors(prev => ({ ...prev, education: validateEducation(value) }))
                 }}
                 placeholder="e.g., B.Tech, MBA"
                 maxLength={20}
+                className={validationErrors.education ? 'border-red-500 focus-visible:ring-red-500' : ''}
               />
-              <p className="text-xs text-muted-foreground">Max 20 characters (letters only)</p>
+              {validationErrors.education && (
+                <p className="text-xs text-red-600">{validationErrors.education}</p>
+              )}
+              {!validationErrors.education && (
+                <p className="text-xs text-muted-foreground">Max 20 characters (letters only)</p>
+              )}
             </div>
             <div className="space-y-2">
               <Label>Mother's Name</Label>
@@ -614,15 +663,19 @@ export default function ProfilePage() {
                 value={profileSettings.motherName}
                 onChange={(e) => {
                   const value = e.target.value
-                  // Only allow letters and spaces, max 50 characters
-                  if (/^[a-zA-Z\s]*$/.test(value) && value.length <= 50) {
-                    setProfileSettings({...profileSettings, motherName: value})
-                  }
+                  setProfileSettings({...profileSettings, motherName: value})
+                  setValidationErrors(prev => ({ ...prev, motherName: validateMotherName(value) }))
                 }}
                 maxLength={50}
                 placeholder="Mother's full name"
+                className={validationErrors.motherName ? 'border-red-500 focus-visible:ring-red-500' : ''}
               />
-              <p className="text-xs text-muted-foreground">Max 50 characters (letters only)</p>
+              {validationErrors.motherName && (
+                <p className="text-xs text-red-600">{validationErrors.motherName}</p>
+              )}
+              {!validationErrors.motherName && (
+                <p className="text-xs text-muted-foreground">Max 50 characters (letters only)</p>
+              )}
             </div>
           </div>
           <div className="space-y-2">
@@ -631,15 +684,17 @@ export default function ProfilePage() {
               value={profileSettings.address}
               onChange={(e) => {
                 const value = e.target.value
-                // Max 60 characters for address
-                if (value.length <= 60) {
-                  setProfileSettings({...profileSettings, address: value})
-                }
+                setProfileSettings({...profileSettings, address: value})
+                setValidationErrors(prev => ({ ...prev, address: validateAddress(value) }))
               }}
               placeholder="Enter your complete address"
               rows={3}
               maxLength={60}
+              className={validationErrors.address ? 'border-red-500 focus-visible:ring-red-500' : ''}
             />
+            {validationErrors.address && (
+              <p className="text-xs text-red-600">{validationErrors.address}</p>
+            )}
             <p className="text-xs text-muted-foreground">{profileSettings.address.length}/60 characters</p>
           </div>
         </CardContent>
@@ -666,10 +721,20 @@ export default function ProfilePage() {
 
       {/* Save Button at the end */}
       <div className="flex justify-end">
-        <Button onClick={handleSaveProfile} disabled={saveProfileMutation.isPending} size="lg">
+        <Button 
+          onClick={handleSaveProfile} 
+          disabled={
+            saveProfileMutation.isPending || 
+            Object.values(validationErrors).some(error => error !== '')
+          } 
+          size="lg"
+        >
           <Save className="mr-2 h-4 w-4" />
           Save Profile
         </Button>
+        {Object.values(validationErrors).some(error => error !== '') && (
+          <p className="text-xs text-red-600 mt-2 ml-3">Please fix validation errors before saving</p>
+        )}
       </div>
     </div>
   )
