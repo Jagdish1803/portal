@@ -83,14 +83,14 @@ export async function POST(request: NextRequest) {
     // Update document or profile data
     const updateData: any = {}
     
-    // Handle documents object
+    // Handle documents object - only update fields that are explicitly provided
     if (documents) {
-      if (documents.aadharCard !== undefined) updateData.aadharCard = documents.aadharCard
-      if (documents.panCard !== undefined) updateData.panCard = documents.panCard
-      if (documents.sscMarksheet !== undefined) updateData.sscMarksheet = documents.sscMarksheet
-      if (documents.hscMarksheet !== undefined) updateData.hscMarksheet = documents.hscMarksheet
-      if (documents.finalYearMarksheet !== undefined) updateData.finalYearMarksheet = documents.finalYearMarksheet
-      if (documents.passportPhoto !== undefined) updateData.passportPhoto = documents.passportPhoto
+      if ('aadharCard' in documents) updateData.aadharCard = documents.aadharCard
+      if ('panCard' in documents) updateData.panCard = documents.panCard
+      if ('sscMarksheet' in documents) updateData.sscMarksheet = documents.sscMarksheet
+      if ('hscMarksheet' in documents) updateData.hscMarksheet = documents.hscMarksheet
+      if ('finalYearMarksheet' in documents) updateData.finalYearMarksheet = documents.finalYearMarksheet
+      if ('passportPhoto' in documents) updateData.passportPhoto = documents.passportPhoto
       console.log('POST /api/profile/documents - Saving documents:', documents)
     }
 
@@ -100,8 +100,8 @@ export async function POST(request: NextRequest) {
       if (profileData.education) updateData.educationQualification = profileData.education
       if (profileData.motherName) updateData.motherName = profileData.motherName
       if (profileData.address) updateData.permanentAddress = profileData.address
-      // Handle profile photo from profileData
-      if (profileData.profilePhoto !== undefined) updateData.passportPhoto = profileData.profilePhoto
+      // Handle profile photo from profileData - only update if explicitly provided
+      if ('profilePhoto' in profileData) updateData.passportPhoto = profileData.profilePhoto
       console.log('POST /api/profile/documents - Saving profileData:', profileData)
     }
 
@@ -118,6 +118,7 @@ export async function POST(request: NextRequest) {
       sscMarksheet: updatedEmployee.sscMarksheet,
       hscMarksheet: updatedEmployee.hscMarksheet,
       finalYearMarksheet: updatedEmployee.finalYearMarksheet,
+      passportPhoto: updatedEmployee.passportPhoto,
     })
 
     return NextResponse.json({ success: true })

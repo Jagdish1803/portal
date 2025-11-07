@@ -239,13 +239,14 @@ export default function ProfilePage() {
         [docType]: newDoc
       }))
       
-      // Save to database
+      // Save to database - send documents object to preserve other fields
       await fetch('/api/profile/documents', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          documentType: docType,
-          filePath: data.path
+          documents: {
+            [docType]: data.path
+          }
         })
       })
       
@@ -276,13 +277,14 @@ export default function ProfilePage() {
         [docType]: null
       }))
       
-      // Update database
+      // Update database - send documents object to preserve other fields
       await fetch('/api/profile/documents', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          documentType: docType,
-          filePath: null
+          documents: {
+            [docType]: null
+          }
         })
       })
       
