@@ -34,6 +34,7 @@ interface Employee {
   hscMarksheet?: string
   finalYearMarksheet?: string
   photo?: string
+  passportPhoto?: string
 }
 
 export default function EmployeeDetailView() {
@@ -59,6 +60,7 @@ export default function EmployeeDetailView() {
 
       const supabase = createSupabaseClient()
       const documents = {
+        passportPhoto: employee.passportPhoto,
         aadharCard: employee.aadharCard,
         panCard: employee.panCard,
         sscMarksheet: employee.sscMarksheet,
@@ -127,7 +129,7 @@ export default function EmployeeDetailView() {
           <CardContent className="pt-6">
             <div className="flex flex-col sm:flex-row items-center sm:items-start gap-6">
               <Avatar className="h-32 w-32 ring-4 ring-background">
-                <AvatarImage src={employee.photo || '/placeholder.svg'} />
+                <AvatarImage src={documentUrls.passportPhoto || '/placeholder.svg'} />
                 <AvatarFallback className="text-3xl">
                   {employee.name.split(' ').map((n: string) => n[0]).join('')}
                 </AvatarFallback>
@@ -286,6 +288,31 @@ export default function EmployeeDetailView() {
           </CardHeader>
           <CardContent>
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              {/* Passport Photo */}
+              <div className="border rounded-lg p-4 space-y-3 hover:shadow-md transition-shadow">
+                <div className="flex items-center justify-between">
+                  <p className="font-medium text-sm">Passport Photo</p>
+                  {employee.passportPhoto ? (
+                    <Badge variant="default" className="text-xs">Uploaded</Badge>
+                  ) : (
+                    <Badge variant="secondary" className="text-xs">Not Uploaded</Badge>
+                  )}
+                </div>
+                {employee.passportPhoto && documentUrls.passportPhoto && (
+                  <a 
+                    href={documentUrls.passportPhoto} 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    className="block"
+                  >
+                    <Button variant="outline" size="sm" className="w-full">
+                      <Download className="h-4 w-4 mr-2" />
+                      View Document
+                    </Button>
+                  </a>
+                )}
+              </div>
+
               {/* Aadhar Card */}
               <div className="border rounded-lg p-4 space-y-3 hover:shadow-md transition-shadow">
                 <div className="flex items-center justify-between">
