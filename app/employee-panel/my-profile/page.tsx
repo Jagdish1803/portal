@@ -33,6 +33,14 @@ export default function MyProfilePage() {
     address: ""
   })
 
+  // Validation errors
+  const [validationErrors, setValidationErrors] = useState({
+    phone: '',
+    education: '',
+    motherName: '',
+    address: ''
+  })
+
   // Documents
   const [documents, setDocuments] = useState<Record<string, File | null>>({
     aadharCard: null,
@@ -65,6 +73,34 @@ export default function MyProfilePage() {
     }
   }, [existingData])
 
+  // Validation functions
+  const validatePhone = (phone: string): string => {
+    if (!phone) return ''
+    if (phone.length !== 10) return 'Phone number must be exactly 10 digits'
+    if (!/^\d{10}$/.test(phone)) return 'Phone number must contain only digits'
+    return ''
+  }
+
+  const validateEducation = (education: string): string => {
+    if (!education) return ''
+    if (education.length > 20) return 'Maximum 20 characters allowed'
+    if (!/^[a-zA-Z\s.,\-]*$/.test(education)) return 'Only letters, spaces, dots, commas, and hyphens allowed'
+    return ''
+  }
+
+  const validateMotherName = (motherName: string): string => {
+    if (!motherName) return ''
+    if (motherName.length > 50) return 'Maximum 50 characters allowed'
+    if (!/^[a-zA-Z\s]*$/.test(motherName)) return 'Only letters and spaces allowed'
+    return ''
+  }
+
+  const validateAddress = (address: string): string => {
+    if (!address) return ''
+    if (address.length > 60) return 'Maximum 60 characters allowed'
+    return ''
+  }
+
   // Load profile photo
   useEffect(() => {
     if (existingData?.documents?.passportPhoto) {
@@ -90,9 +126,17 @@ export default function MyProfilePage() {
   const handlePhotoSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (file) {
+      // Validate file type - only allow JPEG, JPG, and PNG
+      const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png']
+      if (!allowedTypes.includes(file.type.toLowerCase())) {
+        toast.error('Only JPEG, JPG, and PNG images are allowed')
+        return
+      }
+      
       setProfilePhoto(file)
       const blobUrl = URL.createObjectURL(file)
       setProfilePhotoBlobUrl(blobUrl)
+      toast.success('Photo selected. Click "Save Profile" to upload.')
     }
   }
 
@@ -292,7 +336,7 @@ export default function MyProfilePage() {
                   <input
                     id="photo-upload"
                     type="file"
-                    accept="image/*"
+                    accept="image/jpeg,image/jpg,image/png"
                     className="hidden"
                     onChange={handlePhotoSelect}
                   />
@@ -329,10 +373,25 @@ export default function MyProfilePage() {
               <Label htmlFor="phone">Phone Number</Label>
               <Input
                 id="phone"
-                placeholder="+91"
+                placeholder="9876543210"
                 value={profileData.phone}
-                onChange={(e) => setProfileData({...profileData, phone: e.target.value})}
+                onChange={(e) => {
+                  const value = e.target.value
+                  const digitsOnly = value.replace(/\D/g, '')
+                  if (digitsOnly.length <= 10) {
+                    setProfileData({...profileData, phone: digitsOnly})
+                    setValidationErrors(prev => ({ ...prev, phone: validatePhone(digitsOnly) }))
+                  }
+                }}
+                maxLength={10}
+                className={validationErrors.phone ? 'border-red-500 focus-visible:ring-red-500' : ''}
               />
+              {validationErrors.phone && (
+                <p className="text-xs text-red-600">{validationErrors.phone}</p>
+              )}
+              {!validationErrors.phone && (
+                <p className="text-xs text-muted-foreground">10 digits only (Indian mobile number)</p>
+              )}
             </div>
             <div className="space-y-2">
               <Label htmlFor="dob">Date of Birth</Label>
@@ -349,8 +408,20 @@ export default function MyProfilePage() {
                 id="education"
                 placeholder="e.g., B.Tech, MBA"
                 value={profileData.education}
-                onChange={(e) => setProfileData({...profileData, education: e.target.value})}
+                onChange={(e) => {
+                  const value = e.target.value
+                  setProfileData({...profileData, education: value})
+                  setValidationErrors(prev => ({ ...prev, education: validateEducation(value) }))
+                }}
+                maxLength={20}
+                className={validationErrors.education ? 'border-red-500 focus-visible:ring-red-500' : ''}
               />
+              {validationErrors.education && (
+                <p className="text-xs text-red-600">{validationErrors.education}</p>
+              )}
+              {!validationErrors.education && (
+                <p className="text-xs text-muted-foreground">Max 20 characters (letters only)</p>
+              )}
             </div>
             <div className="space-y-2">
               <Label htmlFor="motherName">Mother's Name</Label>
@@ -358,8 +429,20 @@ export default function MyProfilePage() {
                 id="motherName"
                 placeholder="Full name"
                 value={profileData.motherName}
-                onChange={(e) => setProfileData({...profileData, motherName: e.target.value})}
+                onChange={(e) => {
+                  const value = e.target.value
+                  setProfileData({...profileData, motherName: value})
+                  setValidationErrors(prev => ({ ...prev, motherName: validateMotherName(value) }))
+                }}
+                maxLength={50}
+                className={validationErrors.motherName ? 'border-red-500 focus-visible:ring-red-500' : ''}
               />
+              {validationErrors.motherName && (
+                <p className="text-xs text-red-600">{validationErrors.motherName}</p>
+              )}
+              {!validationErrors.motherName && (
+                <p className="text-xs text-muted-foreground">Max 50 characters (letters only)</p>
+              )}
             </div>
           </div>
           <div className="space-y-2">
@@ -369,8 +452,18 @@ export default function MyProfilePage() {
               placeholder="Enter your full address"
               rows={3}
               value={profileData.address}
-              onChange={(e) => setProfileData({...profileData, address: e.target.value})}
+              onChange={(e) => {
+                const value = e.target.value
+                setProfileData({...profileData, address: value})
+                setValidationErrors(prev => ({ ...prev, address: validateAddress(value) }))
+              }}
+              maxLength={60}
+              className={validationErrors.address ? 'border-red-500 focus-visible:ring-red-500' : ''}
             />
+            {validationErrors.address && (
+              <p className="text-xs text-red-600">{validationErrors.address}</p>
+            )}
+            <p className="text-xs text-muted-foreground">{profileData.address.length}/60 characters</p>
           </div>
         </CardContent>
       </Card>
@@ -397,10 +490,16 @@ export default function MyProfilePage() {
         <Button
           size="lg"
           onClick={handleSaveProfile}
-          disabled={saveProfileMutation.isPending}
+          disabled={
+            saveProfileMutation.isPending ||
+            Object.values(validationErrors).some(error => error !== '')
+          }
         >
           {saveProfileMutation.isPending ? "Saving..." : "Save Profile"}
         </Button>
+        {Object.values(validationErrors).some(error => error !== '') && (
+          <p className="text-xs text-red-600 mt-2 ml-3">Please fix validation errors before saving</p>
+        )}
       </div>
     </div>
   )
