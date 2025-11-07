@@ -277,20 +277,39 @@ export default function MyProfilePage() {
       const userId = user?.id
       if (!userId) return
 
+      // Get the existing document path to delete from Supabase
+      const existingPath = existingData?.documents?.[type]
+      
+      // Delete from Supabase bucket if exists
+      if (existingPath && typeof existingPath === 'string') {
+        console.log('Deleting from Supabase bucket:', existingPath)
+        const { error: deleteError } = await supabase.storage
+          .from('employee-documents')
+          .remove([existingPath])
+        
+        if (deleteError) {
+          console.error('Error deleting from bucket:', deleteError)
+          // Continue even if bucket deletion fails
+        }
+      }
+
+      // Update database to remove the document reference
       await fetch('/api/profile/documents', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          userId,
-          profileData,
           documents: {
             [type]: null
           }
         })
       })
 
-      toast.success('Document deleted')
+      toast.success('Document deleted successfully')
+      
+      // Refetch data to update UI
+      window.location.reload()
     } catch (error) {
+      console.error('Error deleting document:', error)
       toast.error('Failed to delete document')
     }
   }
@@ -299,14 +318,17 @@ export default function MyProfilePage() {
     <div className="space-y-2">
       <Label>{label}</Label>
       {existingPath ? (
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 p-3 border rounded-lg bg-gray-50">
+          <FileText className="h-5 w-5 text-gray-600" />
+          <span className="flex-1 text-sm truncate">Document uploaded</span>
           <Button
             type="button"
-            variant="outline"
+            variant="ghost"
             size="sm"
             onClick={() => previewDocument(existingPath)}
+            className="h-8"
           >
-            <FileText className="mr-2 h-4 w-4" />
+            <FileText className="mr-1 h-4 w-4" />
             Preview
           </Button>
           <Button
@@ -314,29 +336,42 @@ export default function MyProfilePage() {
             variant="ghost"
             size="sm"
             onClick={() => deleteDocument(type)}
+            className="h-8 text-red-600 hover:text-red-700 hover:bg-red-50"
           >
-            <X className="mr-2 h-4 w-4" />
-            Delete
+            <X className="h-4 w-4" />
           </Button>
         </div>
       ) : documents[type] ? (
-        <div className="flex items-center gap-2">
-          <span className="text-sm">{documents[type]!.name}</span>
+        <div className="flex items-center gap-2 p-3 border rounded-lg bg-blue-50">
+          <FileText className="h-5 w-5 text-blue-600" />
+          <span className="flex-1 text-sm truncate">{documents[type]!.name}</span>
           <Button
             type="button"
             variant="ghost"
             size="sm"
             onClick={() => handleDocumentChange(type, null)}
+            className="h-8 text-red-600 hover:text-red-700 hover:bg-red-50"
           >
             <X className="h-4 w-4" />
           </Button>
         </div>
       ) : (
-        <Input
-          type="file"
-          accept=".pdf,.jpg,.jpeg,.png"
-          onChange={(e) => handleDocumentChange(type, e.target.files?.[0] || null)}
-        />
+        <div className="relative">
+          <Input
+            type="file"
+            accept=".pdf,.jpg,.jpeg,.png"
+            onChange={(e) => handleDocumentChange(type, e.target.files?.[0] || null)}
+            className="hidden"
+            id={`upload-${type}`}
+          />
+          <label
+            htmlFor={`upload-${type}`}
+            className="flex items-center justify-center gap-2 p-4 border-2 border-dashed rounded-lg cursor-pointer hover:bg-gray-50 transition-colors"
+          >
+            <Upload className="h-5 w-5 text-gray-600" />
+            <span className="text-sm text-gray-600">Click to upload (PDF, JPG, PNG, max 20MB)</span>
+          </label>
+        </div>
       )}
     </div>
   )
