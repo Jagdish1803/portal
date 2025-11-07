@@ -45,9 +45,17 @@ export async function GET() {
       })
 
       if (employee && !employee.clerkUserId) {
+        // Extract the user's actual email from Clerk
+        const userEmail = user?.emailAddresses?.[0]?.emailAddress
+        
+        // Update employee with Clerk user ID and real email
         await prisma.employee.update({
           where: { id: employee.id },
-          data: { clerkUserId: userId }
+          data: { 
+            clerkUserId: userId,
+            // Only update email if we have a real email from Clerk and current email is default format
+            ...(userEmail && employee.email?.includes('@company.com') ? { email: userEmail } : {})
+          }
         })
 
         return NextResponse.json({
@@ -56,7 +64,8 @@ export async function GET() {
           employee: {
             employeeCode: employee.employeeCode,
             name: employee.name,
-            role: employee.role
+            role: employee.role,
+            emailUpdated: userEmail && employee.email?.includes('@company.com')
           }
         })
       }

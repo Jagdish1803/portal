@@ -117,10 +117,17 @@ export async function POST(request: Request) {
       )
     }
 
-    // Link the Clerk user to the employee
+    // Extract the user's actual email from Clerk
+    const userEmail = user?.emailAddresses?.[0]?.emailAddress
+    
+    // Link the Clerk user to the employee and update email if needed
     const updatedEmployee = await prisma.employee.update({
       where: { id: employee.id },
-      data: { clerkUserId: userId }
+      data: { 
+        clerkUserId: userId,
+        // Only update email if we have a real email from Clerk and current email is default format
+        ...(userEmail && employee.email?.includes('@company.com') ? { email: userEmail } : {})
+      }
     })
 
     return NextResponse.json({
@@ -132,7 +139,8 @@ export async function POST(request: Request) {
         name: updatedEmployee.name,
         email: updatedEmployee.email,
         role: updatedEmployee.role,
-      }
+      },
+      emailUpdated: userEmail && employee.email?.includes('@company.com')
     })
 
   } catch (error: any) {
