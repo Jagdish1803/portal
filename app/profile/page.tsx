@@ -335,8 +335,12 @@ export default function ProfilePage() {
   }
 
   const handleDeletePhoto = async () => {
+    console.log('handleDeletePhoto called')
+    console.log('profileData?.profilePhoto:', profileData?.profilePhoto)
+    
     // Delete from Supabase bucket if photo exists
     if (profileData?.profilePhoto && typeof profileData.profilePhoto === 'string' && !profileData.profilePhoto.startsWith('http')) {
+      console.log('Attempting to delete photo from bucket:', profileData.profilePhoto)
       try {
         const { error } = await supabase.storage
           .from('employee-documents')
@@ -344,6 +348,8 @@ export default function ProfilePage() {
         
         if (error) {
           console.error('Error deleting photo from bucket:', error)
+        } else {
+          console.log('Photo deleted from bucket successfully')
         }
       } catch (error) {
         console.error('Error deleting photo:', error)
@@ -351,6 +357,7 @@ export default function ProfilePage() {
     }
     
     // Reset to default
+    console.log('Resetting photo to default')
     setProfileSettings(prev => ({
       ...prev,
       profilePhoto: user?.imageUrl || '/api/placeholder/80/80'
@@ -358,7 +365,8 @@ export default function ProfilePage() {
     
     // Update database immediately to remove photo
     try {
-      await fetch('/api/profile/documents', {
+      console.log('Updating database to remove photo')
+      const response = await fetch('/api/profile/documents', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
@@ -367,6 +375,12 @@ export default function ProfilePage() {
           }
         })
       })
+      
+      if (!response.ok) {
+        throw new Error('Failed to update database')
+      }
+      
+      console.log('Database updated successfully')
       toast.success('Photo removed successfully!')
       refetch()
     } catch (error) {
@@ -504,7 +518,8 @@ export default function ProfilePage() {
                 }}
               />
               <Button 
-                variant="outline" 
+                variant="outline"
+                type="button"
                 onClick={() => document.getElementById('photo-upload')?.click()}
               >
                 Add Photo
@@ -514,7 +529,12 @@ export default function ProfilePage() {
                 <Button 
                   variant="ghost" 
                   size="sm"
-                  onClick={handleDeletePhoto}
+                  type="button"
+                  onClick={(e) => {
+                    e.preventDefault()
+                    e.stopPropagation()
+                    handleDeletePhoto()
+                  }}
                   className="text-red-600 hover:text-red-700 hover:bg-red-50 h-8"
                 >
                   <Trash2 className="h-3 w-3 mr-1" />
@@ -552,15 +572,16 @@ export default function ProfilePage() {
                 value={profileSettings.phone}
                 onChange={(e) => {
                   const value = e.target.value
-                  // Only allow numbers, +, spaces, and hyphens, max 15 characters
-                  if (/^[\d\s+\-]*$/.test(value) && value.length <= 15) {
-                    setProfileSettings({...profileSettings, phone: value})
+                  // Only allow numbers, max 10 digits (Indian mobile number)
+                  const digitsOnly = value.replace(/\D/g, '')
+                  if (digitsOnly.length <= 10) {
+                    setProfileSettings({...profileSettings, phone: digitsOnly})
                   }
                 }}
-                placeholder="+91 98765 43210"
-                maxLength={15}
+                placeholder="9876543210"
+                maxLength={10}
               />
-              <p className="text-xs text-muted-foreground">Max 15 characters</p>
+              <p className="text-xs text-muted-foreground">10 digits only (Indian mobile number)</p>
             </div>
             <div className="space-y-2">
               <Label>Date of Birth</Label>
@@ -577,15 +598,15 @@ export default function ProfilePage() {
                 value={profileSettings.education}
                 onChange={(e) => {
                   const value = e.target.value
-                  // Only allow letters, spaces, dots, commas, and hyphens, max 50 characters
-                  if (/^[a-zA-Z\s.,\-]*$/.test(value) && value.length <= 50) {
+                  // Only allow letters, spaces, dots, commas, and hyphens, max 20 characters
+                  if (/^[a-zA-Z\s.,\-]*$/.test(value) && value.length <= 20) {
                     setProfileSettings({...profileSettings, education: value})
                   }
                 }}
                 placeholder="e.g., B.Tech, MBA"
-                maxLength={50}
+                maxLength={20}
               />
-              <p className="text-xs text-muted-foreground">Max 50 characters (letters only)</p>
+              <p className="text-xs text-muted-foreground">Max 20 characters (letters only)</p>
             </div>
             <div className="space-y-2">
               <Label>Mother's Name</Label>
@@ -593,15 +614,15 @@ export default function ProfilePage() {
                 value={profileSettings.motherName}
                 onChange={(e) => {
                   const value = e.target.value
-                  // Only allow letters and spaces, max 100 characters
-                  if (/^[a-zA-Z\s]*$/.test(value) && value.length <= 100) {
+                  // Only allow letters and spaces, max 50 characters
+                  if (/^[a-zA-Z\s]*$/.test(value) && value.length <= 50) {
                     setProfileSettings({...profileSettings, motherName: value})
                   }
                 }}
-                maxLength={100}
+                maxLength={50}
                 placeholder="Mother's full name"
               />
-              <p className="text-xs text-muted-foreground">Max 100 characters (letters only)</p>
+              <p className="text-xs text-muted-foreground">Max 50 characters (letters only)</p>
             </div>
           </div>
           <div className="space-y-2">
@@ -610,16 +631,16 @@ export default function ProfilePage() {
               value={profileSettings.address}
               onChange={(e) => {
                 const value = e.target.value
-                // Max 500 characters for address
-                if (value.length <= 500) {
+                // Max 60 characters for address
+                if (value.length <= 60) {
                   setProfileSettings({...profileSettings, address: value})
                 }
               }}
               placeholder="Enter your complete address"
               rows={3}
-              maxLength={500}
+              maxLength={60}
             />
-            <p className="text-xs text-muted-foreground">{profileSettings.address.length}/500 characters</p>
+            <p className="text-xs text-muted-foreground">{profileSettings.address.length}/60 characters</p>
           </div>
         </CardContent>
       </Card>
