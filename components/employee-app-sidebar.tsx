@@ -41,6 +41,12 @@ const data = {
       title: "Attendance",
       url: "/employee-panel/attendance",
       icon: CalendarCheck,
+      items: [
+        {
+          title: "View Analytics",
+          url: "/employee-panel/attendance/analytics",
+        },
+      ],
     },
     {
       title: "Work & Tasks",
