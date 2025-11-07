@@ -24,8 +24,8 @@ export default function ProfilePage() {
   const { user } = useUser()
   
   const [profileSettings, setProfileSettings] = useState({
-    name: 'John Doe',
-    email: 'john.doe@company.com',
+    name: '',
+    email: '',
     phone: '+91',
     dateOfBirth: '',
     education: '',
@@ -33,18 +33,6 @@ export default function ProfilePage() {
     address: '',
     profilePhoto: '/api/placeholder/80/80'
   })
-  
-  // Update name/email from Clerk when user loads
-  useEffect(() => {
-    if (user) {
-      setProfileSettings(prev => ({
-        ...prev,
-        name: user.fullName || prev.name,
-        email: user.primaryEmailAddress?.emailAddress || prev.email,
-        profilePhoto: user.imageUrl || prev.profilePhoto
-      }))
-    }
-  }, [user])
 
   const [documents, setDocuments] = useState<{
     aadharCard: Document | null
@@ -61,8 +49,7 @@ export default function ProfilePage() {
   })
 
   const [uploadingDoc, setUploadingDoc] = useState<string | null>(null)
-  const [uploadingPhoto, setUploadingPhoto] = useState(false)
-
+  
   // Load documents from database
   const { data: profileData, refetch } = useQuery({
     queryKey: ['profile-documents'],
@@ -99,10 +86,12 @@ export default function ProfilePage() {
       setDocuments(loadedDocs)
       console.log('Final documents state:', loadedDocs)
 
-      // Update profile settings
+      // Update profile settings from database
       if (profileData.profileData) {
         setProfileSettings(prev => ({
           ...prev,
+          name: profileData.profileData.name || user?.fullName || prev.name,
+          email: profileData.profileData.email || user?.primaryEmailAddress?.emailAddress || prev.email,
           phone: profileData.profileData.phone || prev.phone,
           dateOfBirth: profileData.profileData.dateOfBirth 
             ? new Date(profileData.profileData.dateOfBirth).toISOString().split('T')[0] 
@@ -116,9 +105,11 @@ export default function ProfilePage() {
       // Load profile photo with signed URL if it exists
       if (profileData.profilePhoto && typeof profileData.profilePhoto === 'string') {
         loadProfilePhoto(profileData.profilePhoto)
+      } else if (user?.imageUrl) {
+        setProfileSettings(prev => ({ ...prev, profilePhoto: user.imageUrl }))
       }
     }
-  }, [profileData])
+  }, [profileData, user])
   
   // Function to load profile photo with signed URL
   const loadProfilePhoto = async (photoPath: string) => {

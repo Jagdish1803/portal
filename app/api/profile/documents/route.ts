@@ -16,6 +16,9 @@ export async function GET(request: NextRequest) {
       where: { employeeCode: employee.employeeCode },
       select: {
         id: true,
+        name: true,
+        fullName: true,
+        email: true,
         employeeCode: true,
         passportPhoto: true,
         aadharCard: true,
@@ -45,6 +48,8 @@ export async function GET(request: NextRequest) {
         passportPhoto: employeeData.passportPhoto,
       },
       profileData: {
+        name: employeeData.fullName || employeeData.name,
+        email: employeeData.email,
         phone: employeeData.contactNumber,
         dateOfBirth: employeeData.dateOfBirth,
         education: employeeData.educationQualification,
