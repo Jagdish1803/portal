@@ -152,6 +152,23 @@ export default function ProfilePage() {
       if (data.profilePhoto && data.profilePhoto.startsWith('blob:')) {
         const userId = user?.id || 'anonymous'
         
+        // Delete old photo from bucket before uploading new one
+        if (profileData?.profilePhoto && typeof profileData.profilePhoto === 'string' && !profileData.profilePhoto.startsWith('http')) {
+          try {
+            const { error: deleteError } = await supabase.storage
+              .from('employee-documents')
+              .remove([profileData.profilePhoto])
+            
+            if (deleteError) {
+              console.error('Error deleting old photo:', deleteError)
+              // Continue with upload even if deletion fails
+            }
+          } catch (err) {
+            console.error('Error removing old photo:', err)
+            // Continue with upload
+          }
+        }
+        
         // Convert blob URL back to file
         const response = await fetch(data.profilePhoto)
         const blob = await response.blob()
@@ -265,13 +282,17 @@ export default function ProfilePage() {
       const doc = documents[docType]
       if (!doc) return
       
-      // Delete from Supabase Storage
+      // Delete from Supabase Storage bucket
       const { error } = await supabase.storage
         .from('employee-documents')
-        .remove([doc.id])
+        .remove([doc.url]) // Use doc.url which contains the file path
       
-      if (error) throw error
+      if (error) {
+        console.error('Error deleting from bucket:', error)
+        // Continue even if bucket deletion fails (file might not exist)
+      }
       
+      // Update local state
       setDocuments(prev => ({
         ...prev,
         [docType]: null
@@ -297,6 +318,13 @@ export default function ProfilePage() {
   }
 
   const handlePhotoSelect = (file: File) => {
+    // Validate file type - only allow JPEG, JPG, and PNG
+    const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png']
+    if (!allowedTypes.includes(file.type.toLowerCase())) {
+      toast.error('Only JPEG, JPG, and PNG images are allowed')
+      return
+    }
+    
     // Just show preview, don't upload yet
     const localPreviewUrl = URL.createObjectURL(file)
     setProfileSettings(prev => ({
@@ -306,13 +334,45 @@ export default function ProfilePage() {
     toast.success('Photo selected. Click "Save Profile" to upload.')
   }
 
-  const handleDeletePhoto = () => {
-    // Just reset to default, actual deletion will happen on Save
+  const handleDeletePhoto = async () => {
+    // Delete from Supabase bucket if photo exists
+    if (profileData?.profilePhoto && typeof profileData.profilePhoto === 'string' && !profileData.profilePhoto.startsWith('http')) {
+      try {
+        const { error } = await supabase.storage
+          .from('employee-documents')
+          .remove([profileData.profilePhoto])
+        
+        if (error) {
+          console.error('Error deleting photo from bucket:', error)
+        }
+      } catch (error) {
+        console.error('Error deleting photo:', error)
+      }
+    }
+    
+    // Reset to default
     setProfileSettings(prev => ({
       ...prev,
       profilePhoto: user?.imageUrl || '/api/placeholder/80/80'
     }))
-    toast.success('Photo removed. Click "Save Profile" to confirm.')
+    
+    // Update database immediately to remove photo
+    try {
+      await fetch('/api/profile/documents', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          profileData: {
+            profilePhoto: null
+          }
+        })
+      })
+      toast.success('Photo removed successfully!')
+      refetch()
+    } catch (error) {
+      console.error('Error updating database:', error)
+      toast.error('Failed to remove photo')
+    }
   }
 
   const handlePreview = (url: string) => {
@@ -436,7 +496,7 @@ export default function ProfilePage() {
               <input
                 type="file"
                 id="photo-upload"
-                accept="image/*"
+                accept="image/jpeg,image/jpg,image/png"
                 className="hidden"
                 onChange={(e) => {
                   const file = e.target.files?.[0]
@@ -449,8 +509,8 @@ export default function ProfilePage() {
               >
                 Add Photo
               </Button>
-              {(profileData?.profilePhoto || profileSettings.profilePhoto.startsWith('blob:')) && 
-               profileSettings.profilePhoto !== (user?.imageUrl || '/api/placeholder/80/80') && (
+              {/* Show Remove button if there's a custom photo (from database or newly selected) */}
+              {(profileData?.profilePhoto || profileSettings.profilePhoto.startsWith('blob:')) && (
                 <Button 
                   variant="ghost" 
                   size="sm"
@@ -469,7 +529,11 @@ export default function ProfilePage() {
               <Input
                 value={profileSettings.name}
                 onChange={(e) => setProfileSettings({...profileSettings, name: e.target.value})}
+                maxLength={100}
+                disabled
+                className="bg-gray-50 cursor-not-allowed"
               />
+              <p className="text-xs text-muted-foreground">Name is managed by your account</p>
             </div>
             <div className="space-y-2">
               <Label>Email Address</Label>
@@ -477,15 +541,26 @@ export default function ProfilePage() {
                 type="email"
                 value={profileSettings.email}
                 onChange={(e) => setProfileSettings({...profileSettings, email: e.target.value})}
+                disabled
+                className="bg-gray-50 cursor-not-allowed"
               />
+              <p className="text-xs text-muted-foreground">Email is managed by your account</p>
             </div>
             <div className="space-y-2">
               <Label>Phone Number (India)</Label>
               <Input
                 value={profileSettings.phone}
-                onChange={(e) => setProfileSettings({...profileSettings, phone: e.target.value})}
+                onChange={(e) => {
+                  const value = e.target.value
+                  // Only allow numbers, +, spaces, and hyphens, max 15 characters
+                  if (/^[\d\s+\-]*$/.test(value) && value.length <= 15) {
+                    setProfileSettings({...profileSettings, phone: value})
+                  }
+                }}
                 placeholder="+91 98765 43210"
+                maxLength={15}
               />
+              <p className="text-xs text-muted-foreground">Max 15 characters</p>
             </div>
             <div className="space-y-2">
               <Label>Date of Birth</Label>
@@ -493,32 +568,58 @@ export default function ProfilePage() {
                 type="date"
                 value={profileSettings.dateOfBirth}
                 onChange={(e) => setProfileSettings({...profileSettings, dateOfBirth: e.target.value})}
+                max={new Date().toISOString().split('T')[0]}
               />
             </div>
             <div className="space-y-2">
-              <Label>Education</Label>
+              <Label>Education Qualification</Label>
               <Input
                 value={profileSettings.education}
-                onChange={(e) => setProfileSettings({...profileSettings, education: e.target.value})}
+                onChange={(e) => {
+                  const value = e.target.value
+                  // Only allow letters, spaces, dots, commas, and hyphens, max 50 characters
+                  if (/^[a-zA-Z\s.,\-]*$/.test(value) && value.length <= 50) {
+                    setProfileSettings({...profileSettings, education: value})
+                  }
+                }}
                 placeholder="e.g., B.Tech, MBA"
+                maxLength={50}
               />
+              <p className="text-xs text-muted-foreground">Max 50 characters (letters only)</p>
             </div>
             <div className="space-y-2">
               <Label>Mother's Name</Label>
               <Input
                 value={profileSettings.motherName}
-                onChange={(e) => setProfileSettings({...profileSettings, motherName: e.target.value})}
+                onChange={(e) => {
+                  const value = e.target.value
+                  // Only allow letters and spaces, max 100 characters
+                  if (/^[a-zA-Z\s]*$/.test(value) && value.length <= 100) {
+                    setProfileSettings({...profileSettings, motherName: value})
+                  }
+                }}
+                maxLength={100}
+                placeholder="Mother's full name"
               />
+              <p className="text-xs text-muted-foreground">Max 100 characters (letters only)</p>
             </div>
           </div>
           <div className="space-y-2">
-            <Label>Address</Label>
+            <Label>Permanent Address</Label>
             <Textarea
               value={profileSettings.address}
-              onChange={(e) => setProfileSettings({...profileSettings, address: e.target.value})}
+              onChange={(e) => {
+                const value = e.target.value
+                // Max 500 characters for address
+                if (value.length <= 500) {
+                  setProfileSettings({...profileSettings, address: value})
+                }
+              }}
               placeholder="Enter your complete address"
               rows={3}
+              maxLength={500}
             />
+            <p className="text-xs text-muted-foreground">{profileSettings.address.length}/500 characters</p>
           </div>
         </CardContent>
       </Card>
