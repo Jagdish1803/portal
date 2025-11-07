@@ -45,7 +45,7 @@ async function checkAttendance() {
         sampleRecords.push({
           employeeId: employee.id,
           date: date,
-          status: 'PRESENT',
+          status: 'PRESENT' as const,
           checkInTime: checkIn,
           checkOutTime: checkOut,
           totalHours: 9.0,
