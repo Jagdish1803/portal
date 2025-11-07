@@ -641,7 +641,7 @@ export default function ProfilePage() {
                 <p className="text-xs text-red-600">{validationErrors.phone}</p>
               )}
               {!validationErrors.phone && (
-                <p className="text-xs text-muted-foreground">10 digits only (Indian mobile number)</p>
+                <p className="text-xs text-muted-foreground">10 digits only</p>
               )}
             </div>
             <div className="space-y-2">

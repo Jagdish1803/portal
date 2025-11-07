@@ -64,14 +64,18 @@ export default function MyProfilePage() {
     if (existingData?.profileData) {
       setProfileData(prev => ({
         ...prev,
+        fullName: existingData.profileData.name || user?.fullName || prev.fullName,
+        email: existingData.profileData.email || user?.primaryEmailAddress?.emailAddress || prev.email,
         phone: existingData.profileData.phone || "",
-        dateOfBirth: existingData.profileData.dateOfBirth || "",
+        dateOfBirth: existingData.profileData.dateOfBirth 
+          ? new Date(existingData.profileData.dateOfBirth).toISOString().split('T')[0]
+          : "",
         education: existingData.profileData.education || "",
         motherName: existingData.profileData.motherName || "",
         address: existingData.profileData.address || ""
       }))
     }
-  }, [existingData])
+  }, [existingData, user])
 
   // Validation functions
   const validatePhone = (phone: string): string => {
@@ -420,7 +424,7 @@ export default function MyProfilePage() {
                 <p className="text-xs text-red-600">{validationErrors.phone}</p>
               )}
               {!validationErrors.phone && (
-                <p className="text-xs text-muted-foreground">10 digits only (Indian mobile number)</p>
+                <p className="text-xs text-muted-foreground">10 digits only</p>
               )}
             </div>
             <div className="space-y-2">
