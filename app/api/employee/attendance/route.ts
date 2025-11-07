@@ -7,12 +7,16 @@ export async function GET(request: NextRequest) {
     // Get the current employee from session
     const currentEmployee = await getCurrentEmployee()
     
+    console.log('[Employee Attendance API] Current employee:', currentEmployee)
+    
     if (!currentEmployee) {
       return NextResponse.json(
         { error: 'Not authenticated' },
         { status: 401 }
       )
     }
+    
+    console.log('[Employee Attendance API] Fetching records for employee ID:', currentEmployee.id)
     
     // Fetch attendance records for this employee only
     const records = await prisma.attendanceRecord.findMany({
@@ -36,6 +40,8 @@ export async function GET(request: NextRequest) {
         }
       }
     })
+    
+    console.log('[Employee Attendance API] Found', records.length, 'records for employee', currentEmployee.employeeCode)
     
     // Format records for frontend
     const formattedRecords = records.map(record => ({

@@ -50,7 +50,9 @@ export async function GET(request: NextRequest) {
         education: employeeData.educationQualification,
         motherName: employeeData.motherName,
         address: employeeData.permanentAddress,
-      }
+      },
+      // Add profilePhoto at root level for nav-user component
+      profilePhoto: employeeData.passportPhoto
     }
     
     console.log('GET /api/profile/documents - Returning for', employee.employeeCode, ':', JSON.stringify(response, null, 2))
@@ -93,6 +95,8 @@ export async function POST(request: NextRequest) {
       if (profileData.education) updateData.educationQualification = profileData.education
       if (profileData.motherName) updateData.motherName = profileData.motherName
       if (profileData.address) updateData.permanentAddress = profileData.address
+      // Handle profile photo from profileData
+      if (profileData.profilePhoto !== undefined) updateData.passportPhoto = profileData.profilePhoto
       console.log('POST /api/profile/documents - Saving profileData:', profileData)
     }
 

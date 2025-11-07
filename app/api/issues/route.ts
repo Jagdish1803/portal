@@ -1,7 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { PrismaClient } from '@prisma/client'
-
-const prisma = new PrismaClient()
+import { prisma } from '@/lib/prisma'
 
 // GET /api/issues - Get issues
 export async function GET(request: NextRequest) {
@@ -42,10 +40,23 @@ export async function GET(request: NextRequest) {
       },
     })
 
+    // Calculate days elapsed for each issue
+    const issuesWithDays = issues.map(issue => {
+      const raised = new Date(issue.raisedDate)
+      const now = new Date()
+      const diffTime = Math.abs(now.getTime() - raised.getTime())
+      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
+      
+      return {
+        ...issue,
+        daysElapsed: diffDays
+      }
+    })
+
     return NextResponse.json({
       success: true,
-      data: issues,
-      count: issues.length,
+      data: issuesWithDays,
+      count: issuesWithDays.length,
     })
   } catch (error: any) {
     console.error('Error fetching issues:', error)

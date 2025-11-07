@@ -151,7 +151,7 @@ export default function CreateActionPage() {
                       <SelectTrigger id="warning-employee">
                         <SelectValue placeholder="Select employee" />
                       </SelectTrigger>
-                      <SelectContent>
+                      <SelectContent className="max-h-[300px] overflow-y-auto">
                         {employees.map((emp: any) => (
                           <SelectItem key={emp.id} value={emp.id.toString()}>
                             {emp.name} ({emp.employeeCode})
@@ -241,7 +241,7 @@ export default function CreateActionPage() {
                       <SelectTrigger id="penalty-employee">
                         <SelectValue placeholder="Select employee" />
                       </SelectTrigger>
-                      <SelectContent>
+                      <SelectContent className="max-h-[300px] overflow-y-auto">
                         {employees.map((emp: any) => (
                           <SelectItem key={emp.id} value={emp.id.toString()}>
                             {emp.name} ({emp.employeeCode})
@@ -263,7 +263,7 @@ export default function CreateActionPage() {
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="amount">Amount ($)</Label>
+                    <Label htmlFor="amount">Amount (₹)</Label>
                     <Input
                       id="amount"
                       type="number"

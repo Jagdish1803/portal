@@ -229,7 +229,7 @@ export default function BreakPage() {
         </div>
 
         {/* Main Break Timer Card */}
-        <Card className="border-2 shadow-2xl backdrop-blur">
+        <Card className="border-2 shadow-none">
           <CardContent className="p-12">
             {activeBreak ? (
               <div className="flex flex-col items-center justify-center py-16">

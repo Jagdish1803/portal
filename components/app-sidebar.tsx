@@ -154,6 +154,12 @@ const data = {
       title: "Admin Management",
       url: "/admin",
       icon: Shield,
+      items: [
+        {
+          title: "Account Link Status",
+          url: "/admin/link-accounts",
+        },
+      ],
     },
   ],
   navSecondary: [
@@ -208,11 +214,25 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
     if (userRole === 'ADMIN' || userRole === 'TEAMLEADER') {
       return [
         {
+          title: "Issue Management",
+          url: "/admin/issues",
+          icon: LifeBuoy,
+        },
+        {
           title: "My Employee Panel",
           url: "/employee-panel",
           icon: UserCircle,
         },
-        ...data.navSecondary
+        {
+          title: "My Attendance",
+          url: "/employee-panel/attendance/records",
+          icon: Clock,
+        },
+        {
+          title: "Profile",
+          url: "/profile",
+          icon: Settings2,
+        },
       ]
     }
     return data.navSecondary

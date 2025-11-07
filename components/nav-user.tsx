@@ -7,8 +7,8 @@ import {
   ChevronsUpDown,
   LogOut,
 } from "lucide-react"
-import { Badge } from "@/components/ui/badge"
 
+import { Badge } from "@/components/ui/badge"
 import {
   Avatar,
   AvatarFallback,
@@ -28,6 +28,7 @@ import {
   SidebarMenuItem,
   useSidebar,
 } from "@/components/ui/sidebar"
+
 import { supabase } from '@/lib/supabase'
 
 export function NavUser() {
@@ -55,8 +56,8 @@ export function NavUser() {
       if (!res.ok) return null
       return res.json()
     },
-    staleTime: 5 * 60 * 1000, // 5 minutes
-    refetchOnWindowFocus: false,
+    staleTime: 30 * 1000, // 30 seconds (shorter cache for profile photo)
+    refetchOnWindowFocus: true, // Refetch when window gains focus
   })
 
   // Load profile photo with signed URL
@@ -125,12 +126,14 @@ export function NavUser() {
                 <AvatarImage src={avatarUrl} alt={displayName} />
                 <AvatarFallback className="rounded-lg">{userInitials}</AvatarFallback>
               </Avatar>
+              
               <div className="grid flex-1 text-left text-sm leading-tight">
                 <span className="truncate font-medium">{displayName}</span>
                 <span className="truncate text-xs font-mono text-muted-foreground">
                   {employeeData?.employee?.employeeCode || user.primaryEmailAddress?.emailAddress}
                 </span>
               </div>
+              
               <ChevronsUpDown className="ml-auto size-4" />
             </SidebarMenuButton>
           </DropdownMenuTrigger>
@@ -146,14 +149,17 @@ export function NavUser() {
                   <AvatarImage src={avatarUrl} alt={displayName} />
                   <AvatarFallback className="rounded-lg">{userInitials}</AvatarFallback>
                 </Avatar>
+                
                 <div className="grid flex-1 text-left text-sm leading-tight">
                   <span className="truncate font-medium">{displayName}</span>
                   <span className="truncate text-xs">{user.primaryEmailAddress?.emailAddress}</span>
+                  
                   {employeeData?.employee?.employeeCode && (
                     <div className="flex items-center gap-1 mt-1">
                       <Badge variant="outline" className="text-[10px] font-mono px-1 py-0">
                         {employeeData.employee.employeeCode}
                       </Badge>
+                      
                       {employeeData.employee.role === 'ADMIN' && (
                         <Badge variant="default" className="text-[10px] px-1 py-0 bg-blue-600">
                           Admin
@@ -164,7 +170,9 @@ export function NavUser() {
                 </div>
               </div>
             </DropdownMenuLabel>
+            
             <DropdownMenuSeparator />
+            
             <DropdownMenuItem onClick={handleSignOut}>
               <LogOut />
               Log out

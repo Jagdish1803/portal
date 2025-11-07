@@ -7,9 +7,9 @@ import { Label } from "@/components/ui/label"
 import { Badge } from "@/components/ui/badge"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { CalendarIcon, Clock, Search, UserCheck, UserX, Calendar, TrendingUp, Edit, ChevronDown, ChevronUp } from "lucide-react"
+import { CalendarIcon, Clock, Search, UserCheck, UserX, Calendar, TrendingUp, Edit, ChevronDown, ChevronUp, Loader2 } from "lucide-react"
 import React, { useState, useEffect } from "react"
-import { format, startOfMonth, endOfMonth, startOfWeek, endOfWeek } from "date-fns"
+import { format, startOfMonth, endOfMonth, startOfWeek, endOfWeek, isSunday, eachDayOfInterval } from "date-fns"
 
 interface EditHistoryItem {
   fieldChanged: string
@@ -46,9 +46,34 @@ export default function MyAttendanceRecordsPage() {
   const [statusFilter, setStatusFilter] = useState("all")
   const [dateFilter, setDateFilter] = useState("all")
   const [currentCycle, setCurrentCycle] = useState("")
-  const [cycleFilter, setCycleFilter] = useState("current")
+  const [cycleFilter, setCycleFilter] = useState("all") // Changed from "current" to "all"
   const [availableCycles, setAvailableCycles] = useState<Array<{value: string, label: string, startDate: Date, endDate: Date}>>([])
   const [expandedRecordId, setExpandedRecordId] = useState<string | null>(null)
+  const [employeeInfo, setEmployeeInfo] = useState<{standardHours: number, dailyHours: number} | null>(null)
+
+  // Helper function to convert HH:MM string to decimal hours
+  const timeToDecimal = (timeStr: string): number => {
+    const [hours, minutes] = timeStr.split(':').map(Number)
+    return hours + (minutes / 60)
+  }
+
+  // Helper function to convert decimal format like 8.20 to minutes (treating it as 8:20)
+  const configValueToMinutes = (configValue: number): number => {
+    // If the config value is like 8.20, treat it as 8 hours 20 minutes
+    const wholePart = Math.floor(configValue)
+    const decimalPart = Math.round((configValue - wholePart) * 100) // Get the decimal part as minutes
+    return (wholePart * 60) + decimalPart
+  }
+
+  // Helper function to convert decimal hours to total minutes (for actual hours worked)
+  const hoursToMinutes = (hours: number): number => {
+    return Math.round(hours * 60)
+  }
+
+  // Helper function to convert minutes to decimal hours
+  const minutesToHours = (minutes: number): number => {
+    return minutes / 60
+  }
 
   useEffect(() => {
     // Generate available salary cycles
@@ -96,32 +121,83 @@ export default function MyAttendanceRecordsPage() {
 
   useEffect(() => {
     fetchAttendanceRecords()
+    fetchEmployeeInfo()
   }, [])
 
   useEffect(() => {
     applyFilters()
   }, [attendanceRecords, statusFilter, dateFilter, searchDate, cycleFilter])
 
+  useEffect(() => {
+    // Force re-render when employee info changes
+    console.log('Employee info updated:', employeeInfo)
+  }, [employeeInfo])
+
+  // Recalculate when cycle filter changes
+  useEffect(() => {
+    console.log('Cycle filter changed to:', cycleFilter)
+  }, [cycleFilter, availableCycles])
+
   async function fetchAttendanceRecords() {
     try {
       setLoading(true)
       setError(null)
       
+      console.log('[Attendance Records] Fetching from /api/employee/attendance')
       const response = await fetch('/api/employee/attendance')
+      
+      console.log('[Attendance Records] Response status:', response.status, response.ok)
       
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}))
+        console.error('[Attendance Records] Error response:', errorData)
         throw new Error(errorData.error || `Failed to fetch (${response.status})`)
       }
 
       const data = await response.json()
+      console.log('[Attendance Records] Received data:', data)
+      console.log('[Attendance Records] Records count:', data.records?.length || 0)
+      
       setAttendanceRecords(data.records || [])
       setError(null)
     } catch (err: any) {
       console.error('Error fetching attendance:', err)
       setError(err.message)
+      
+      // Auto-retry for authentication errors (auto-linking should fix it)
+      if (err.message.includes('Not authenticated')) {
+        setTimeout(() => {
+          fetchAttendanceRecords()
+        }, 2000)
+      }
     } finally {
       setLoading(false)
+    }
+  }
+
+  async function fetchEmployeeInfo() {
+    try {
+      const response = await fetch('/api/employee/profile')
+      console.log('Employee profile response:', response.status, response.ok)
+      
+      if (!response.ok) {
+        throw new Error(`Failed to fetch profile: ${response.status}`)
+      }
+      
+      const data = await response.json()
+      console.log('Employee profile data:', data)
+      
+      const standardHours = data.employee?.standardHours || 160 // Default to 160 hours per month
+      const dailyHours = 8.20 // Default daily hours (8.20 = 8 hours 20 minutes)
+      
+      setEmployeeInfo({ standardHours, dailyHours })
+      console.log('Set employee info:', { standardHours, dailyHours })
+    } catch (err) {
+      console.error('Error fetching employee info:', err)
+      // Set default values if API fails
+      const defaultInfo = { standardHours: 160, dailyHours: 8.20 } // 8.20 = 8:20
+      setEmployeeInfo(defaultInfo)
+      console.log('Set default employee info:', defaultInfo)
     }
   }
 
@@ -183,12 +259,14 @@ export default function MyAttendanceRecordsPage() {
     return hours.toFixed(2)
   }
 
-  // Helper function to format decimal hours to HH:MM
+  // Helper function to format decimal hours to HH:MM or HHH:MM for large values
   const formatHoursToTime = (decimalHours: number): string => {
     if (!decimalHours || decimalHours === 0) return '00:00'
     const hours = Math.floor(decimalHours)
     const minutes = Math.round((decimalHours % 1) * 60)
-    return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`
+    // For hours >= 100, don't pad with leading zeros
+    const hoursStr = hours >= 100 ? hours.toString() : hours.toString().padStart(2, '0')
+    return `${hoursStr}:${minutes.toString().padStart(2, '0')}`
   }
 
   // Helper function to format edit history values based on field type
@@ -250,9 +328,10 @@ export default function MyAttendanceRecordsPage() {
     if (record.status === 'PRESENT' || record.status === 'WFH_APPROVED') acc.present++
     if (record.status === 'ABSENT') acc.absent++
     
-    // Calculate current total hours
+    // Calculate current total hours in minutes for accurate calculation
     if (record.totalHours > 0) {
-      acc.currentTotalHours += record.totalHours
+      const minutesWorked = hoursToMinutes(record.totalHours)
+      acc.currentTotalMinutes += minutesWorked
       acc.daysWithHours++
     }
     
@@ -261,14 +340,14 @@ export default function MyAttendanceRecordsPage() {
       const totalHoursEdit = record.editHistory.find(edit => edit.fieldChanged === 'totalHours')
       if (totalHoursEdit) {
         const originalHours = parseFloat(totalHoursEdit.oldValue) || 0
-        acc.originalTotalHours += originalHours
+        acc.originalTotalMinutes += hoursToMinutes(originalHours)
       } else {
         // If no edit to totalHours, use current value for original too
-        acc.originalTotalHours += record.totalHours
+        acc.originalTotalMinutes += hoursToMinutes(record.totalHours)
       }
     } else {
       // Not edited, so original equals current
-      acc.originalTotalHours += record.totalHours
+      acc.originalTotalMinutes += hoursToMinutes(record.totalHours)
     }
     
     return acc
@@ -276,13 +355,78 @@ export default function MyAttendanceRecordsPage() {
     totalRecords: 0, 
     present: 0, 
     absent: 0, 
-    currentTotalHours: 0, 
-    originalTotalHours: 0,
+    currentTotalMinutes: 0, 
+    originalTotalMinutes: 0,
     daysWithHours: 0 
   })
 
-  const hoursAdjusted = stats.currentTotalHours - stats.originalTotalHours
-  const avgWorkHours = stats.daysWithHours > 0 ? stats.currentTotalHours / stats.daysWithHours : 0
+  // Convert back to hours for display
+  const currentTotalHours = minutesToHours(stats.currentTotalMinutes)
+  const originalTotalHours = minutesToHours(stats.originalTotalMinutes)
+  const hoursAdjusted = currentTotalHours - originalTotalHours
+  const avgWorkHours = stats.daysWithHours > 0 ? currentTotalHours / stats.daysWithHours : 0
+
+  // Calculate hours goal for current salary cycle
+  const calculateHoursGoal = () => {
+    // Use employee's daily hours or default (8.20 means 8 hours 20 minutes)
+    const dailyHours = employeeInfo?.dailyHours || 8.20
+    const dailyMinutes = configValueToMinutes(dailyHours) // Convert 8.20 -> 500 minutes (8*60 + 20)
+    
+    const today = new Date()
+    
+    // For current cycle filter, determine which salary cycle we're in
+    // If cycle filter is "current" or we need current cycle
+    let cycleStart: Date
+    let cycleEnd: Date
+    
+    // Find the selected cycle from available cycles
+    const selectedCycle = availableCycles.find(c => c.value === cycleFilter)
+    
+    if (selectedCycle && selectedCycle.value !== 'all') {
+      // Use the selected cycle dates
+      cycleStart = selectedCycle.startDate
+      cycleEnd = selectedCycle.endDate
+    } else {
+      // Calculate current cycle
+      if (today.getDate() >= 6) {
+        // We're after the 6th of current month, so cycle is 6th of this month to 5th of next month
+        cycleStart = new Date(today.getFullYear(), today.getMonth(), 6)
+        cycleEnd = new Date(today.getFullYear(), today.getMonth() + 1, 5)
+      } else {
+        // We're before the 6th of current month, so cycle is 6th of last month to 5th of this month
+        cycleStart = new Date(today.getFullYear(), today.getMonth() - 1, 6)
+        cycleEnd = new Date(today.getFullYear(), today.getMonth(), 5)
+      }
+    }
+    
+    // Get all days in the salary cycle (inclusive of both start and end dates)
+    const allDays = eachDayOfInterval({ start: cycleStart, end: cycleEnd })
+    
+    // Count working days (exclude Sundays)
+    const workingDays = allDays.filter(day => !isSunday(day)).length
+    
+    // Calculate total minutes goal, then convert to hours
+    const totalMinutesGoal = workingDays * dailyMinutes
+    const hoursGoal = minutesToHours(totalMinutesGoal)
+    
+    console.log('Hours goal calculation:', { 
+      cycleFilter,
+      selectedCycleDates: selectedCycle ? `${selectedCycle.startDate.toDateString()} - ${selectedCycle.endDate.toDateString()}` : 'calculated',
+      cycleStart: cycleStart.toDateString(),
+      cycleEnd: cycleEnd.toDateString(),
+      totalDays: allDays.length,
+      workingDays, 
+      dailyHours,
+      dailyMinutes,
+      totalMinutesGoal,
+      hoursGoal,
+      hoursGoalFormatted: formatHoursToTime(hoursGoal)
+    })
+    
+    return { workingDays, hoursGoal }
+  }
+
+  const { workingDays, hoursGoal } = calculateHoursGoal()
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -307,14 +451,14 @@ export default function MyAttendanceRecordsPage() {
       </div>
 
       {/* Stats Cards */}
-      <div className="grid gap-4 md:grid-cols-4">
+      <div className="grid gap-4 md:grid-cols-5">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total Hours</CardTitle>
             <Clock className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{loading ? '-' : formatHoursToTime(stats.currentTotalHours)}</div>
+            <div className="text-2xl font-bold">{loading ? '-' : formatHoursToTime(currentTotalHours)}</div>
             <p className="text-xs text-muted-foreground">
               Current total in filter
             </p>
@@ -327,7 +471,7 @@ export default function MyAttendanceRecordsPage() {
             <Clock className="h-4 w-4 text-gray-600" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-gray-600">{loading ? '-' : formatHoursToTime(stats.originalTotalHours)}</div>
+            <div className="text-2xl font-bold text-gray-600">{loading ? '-' : formatHoursToTime(originalTotalHours)}</div>
             <p className="text-xs text-muted-foreground">
               Before any edits
             </p>
@@ -358,6 +502,21 @@ export default function MyAttendanceRecordsPage() {
             <div className="text-2xl font-bold text-purple-600">{loading ? '-' : formatHoursToTime(avgWorkHours)}</div>
             <p className="text-xs text-muted-foreground">
               Per day
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Hours Goal</CardTitle>
+            <Calendar className="h-4 w-4 text-orange-600" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-orange-600">
+              {loading ? '-' : formatHoursToTime(hoursGoal)}
+            </div>
+            <p className="text-xs text-muted-foreground">
+              {workingDays} days @ 08:20/day
             </p>
           </CardContent>
         </Card>
@@ -451,16 +610,23 @@ export default function MyAttendanceRecordsPage() {
             </div>
           ) : error ? (
             <div className="flex flex-col items-center justify-center py-12">
-              <div className="text-red-500 text-lg font-semibold mb-2">Error Loading Attendance</div>
-              <div className="text-muted-foreground mb-4 text-center max-w-md">{error}</div>
-              {error.includes('Not authenticated') && (
-                <div className="text-sm text-muted-foreground mb-4 text-center">
-                  Please contact your administrator to link your account.
-                </div>
+              {error.includes('Not authenticated') ? (
+                <>
+                  <Loader2 className="h-12 w-12 animate-spin text-primary mb-4" />
+                  <div className="text-lg font-semibold mb-2">Setting up your account...</div>
+                  <div className="text-sm text-muted-foreground text-center max-w-md">
+                    We're automatically linking your account. This will just take a moment.
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="text-red-500 text-lg font-semibold mb-2">Error Loading Attendance</div>
+                  <div className="text-muted-foreground mb-4 text-center max-w-md">{error}</div>
+                  <Button onClick={() => fetchAttendanceRecords()} variant="outline">
+                    Retry
+                  </Button>
+                </>
               )}
-              <Button onClick={() => fetchAttendanceRecords()} variant="outline">
-                Retry
-              </Button>
             </div>
           ) : filteredRecords.length === 0 ? (
             <div className="flex items-center justify-center py-8">

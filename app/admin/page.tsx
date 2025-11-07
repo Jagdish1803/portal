@@ -327,7 +327,7 @@ export default function AdminPage() {
                               <span>📅 Date: {new Date(penalty.penaltyDate).toLocaleDateString()}</span>
                               {penalty.amount && (
                                 <span className="text-red-600 font-medium">
-                                  💰 ${penalty.amount.toFixed(2)}
+                                  💰 ₹{penalty.amount.toFixed(2)}
                                 </span>
                               )}
                               {penalty.employee.department && <span>🏢 {penalty.employee.department}</span>}

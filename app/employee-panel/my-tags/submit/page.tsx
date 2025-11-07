@@ -39,9 +39,7 @@ export default function SubmitTagsPage() {
     { id: 1, tagId: "", tagName: "", count: "", minutes: "" }
   ])
   
-  // State for linking account
-  const [linkingAccount, setLinkingAccount] = useState(false)
-  const [employeeCodeInput, setEmployeeCodeInput] = useState("")
+
 
   // Calculate date restrictions (today and yesterday only)
   const today = new Date()
@@ -52,7 +50,7 @@ export default function SubmitTagsPage() {
   const minDate = yesterday.toISOString().split('T')[0]
 
   // Fetch employee data to get employeeId
-  const { data: employeeData, isLoading: employeeLoading, error: employeeError } = useQuery({
+  const { data: employeeData, isLoading: employeeLoading, error: employeeError, refetch: refetchEmployee } = useQuery({
     queryKey: ['employee-profile', user?.id],
     queryFn: async () => {
       const clerkUserId = user?.id
@@ -256,37 +254,7 @@ export default function SubmitTagsPage() {
   const minutes = totalMinutes % 60
   const timeFormatted = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`
 
-  // Function to link account with employee code
-  const handleLinkAccount = async () => {
-    if (!employeeCodeInput.trim()) {
-      toast.error("Please enter your employee code")
-      return
-    }
 
-    setLinkingAccount(true)
-    try {
-      const response = await fetch('/api/employees/link-clerk', {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ employeeCode: employeeCodeInput.trim() })
-      })
-
-      const result = await response.json()
-      
-      if (response.ok && result.success) {
-        toast.success("Account linked successfully! Refreshing...")
-        // Refresh the page to reload employee data
-        window.location.reload()
-      } else {
-        toast.error(result.error || "Failed to link account")
-      }
-    } catch (error) {
-      toast.error("Failed to link account")
-      console.error('Link account error:', error)
-    } finally {
-      setLinkingAccount(false)
-    }
-  }
 
   // Check if date is already submitted
   const isDateSubmitted = submissionStatusData?.isSubmitted || false
@@ -303,8 +271,13 @@ export default function SubmitTagsPage() {
     )
   }
 
-  // Show error if employee not found
+  // Auto-retry if employee not found (automatic linking should work)
   if (employeeError || !employeeData?.data) {
+    // Automatically retry every 2 seconds - the auto-linking should fix it
+    setTimeout(() => {
+      refetchEmployee()
+    }, 2000)
+
     return (
       <div className="space-y-6">
         <div>
@@ -314,43 +287,14 @@ export default function SubmitTagsPage() {
           </p>
         </div>
         <Card>
-          <CardContent className="py-12 space-y-6">
+          <CardContent className="py-12">
             <div className="text-center space-y-4">
-              <p className="text-destructive text-lg font-semibold">
-                Unable to find your employee profile
-              </p>
-              <div className="text-sm text-muted-foreground space-y-1">
-                <p>Your Clerk Email: <strong>{user?.primaryEmailAddress?.emailAddress}</strong></p>
-                <p>Your Clerk User ID: <strong className="text-xs">{user?.id}</strong></p>
-              </div>
-            </div>
-
-            <div className="max-w-md mx-auto space-y-4">
-              <div className="bg-blue-50 border border-blue-200 p-4 rounded-lg text-left text-sm">
-                <p className="font-semibold mb-2 text-blue-900">Link Your Account</p>
-                <p className="text-blue-800 mb-3">Enter your employee code to link your Clerk account:</p>
-                <div className="flex gap-2">
-                  <Input
-                    placeholder="Employee Code (e.g., Zoot1086)"
-                    value={employeeCodeInput}
-                    onChange={(e) => setEmployeeCodeInput(e.target.value)}
-                    disabled={linkingAccount}
-                  />
-                  <Button 
-                    onClick={handleLinkAccount}
-                    disabled={linkingAccount}
-                  >
-                    {linkingAccount ? <Loader2 className="h-4 w-4 animate-spin" /> : "Link"}
-                  </Button>
-                </div>
-              </div>
-
-              <div className="bg-muted p-4 rounded-lg text-left text-sm">
-                <p className="font-semibold mb-2">Or contact your administrator to:</p>
-                <ol className="list-decimal list-inside space-y-1 text-muted-foreground">
-                  <li>Update your employee email to: <strong>{user?.primaryEmailAddress?.emailAddress}</strong></li>
-                  <li>Or link your Clerk ID: <strong className="text-xs break-all">{user?.id}</strong></li>
-                </ol>
+              <Loader2 className="h-12 w-12 animate-spin text-primary mx-auto" />
+              <div className="space-y-2">
+                <p className="text-lg font-semibold">Setting up your account...</p>
+                <p className="text-sm text-muted-foreground">
+                  We're automatically linking your account. This will just take a moment.
+                </p>
               </div>
             </div>
           </CardContent>
