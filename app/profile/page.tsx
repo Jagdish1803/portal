@@ -175,7 +175,7 @@ export default function ProfilePage() {
 
   const validateAddress = (address: string): string => {
     if (!address) return ''
-    if (address.length > 60) return 'Maximum 60 characters allowed'
+    if (address.length > 100) return 'Maximum 100 characters allowed'
     return ''
   }
 
@@ -265,6 +265,22 @@ export default function ProfilePage() {
     setUploadingDoc(docType)
     
     try {
+      // Validate file type - only allow PDF, JPEG, JPG, and PNG
+      const allowedTypes = ['application/pdf', 'image/jpeg', 'image/jpg', 'image/png']
+      if (!allowedTypes.includes(file.type.toLowerCase())) {
+        toast.error('Only PDF, JPEG, JPG, and PNG files are allowed')
+        setUploadingDoc(null)
+        return
+      }
+      
+      // Validate file size - max 20MB
+      const maxSize = 20 * 1024 * 1024 // 20MB in bytes
+      if (file.size > maxSize) {
+        toast.error('File size must be less than 20MB')
+        setUploadingDoc(null)
+        return
+      }
+      
       // Get user ID from Clerk
       const userId = user?.id || 'anonymous'
       
@@ -689,13 +705,13 @@ export default function ProfilePage() {
               }}
               placeholder="Enter your complete address"
               rows={3}
-              maxLength={60}
+              maxLength={100}
               className={validationErrors.address ? 'border-red-500 focus-visible:ring-red-500' : ''}
             />
             {validationErrors.address && (
               <p className="text-xs text-red-600">{validationErrors.address}</p>
             )}
-            <p className="text-xs text-muted-foreground">{profileSettings.address.length}/60 characters</p>
+            <p className="text-xs text-muted-foreground">{profileSettings.address.length}/100 characters</p>
           </div>
         </CardContent>
       </Card>

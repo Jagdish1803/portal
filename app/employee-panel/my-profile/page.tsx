@@ -97,7 +97,7 @@ export default function MyProfilePage() {
 
   const validateAddress = (address: string): string => {
     if (!address) return ''
-    if (address.length > 60) return 'Maximum 60 characters allowed'
+    if (address.length > 100) return 'Maximum 100 characters allowed'
     return ''
   }
 
@@ -151,6 +151,20 @@ export default function MyProfilePage() {
   const handleDocumentUpload = async (file: File, type: string) => {
     const userId = user?.id
     if (!userId) return null
+
+    // Validate file type - only allow PDF, JPEG, JPG, and PNG
+    const allowedTypes = ['application/pdf', 'image/jpeg', 'image/jpg', 'image/png']
+    if (!allowedTypes.includes(file.type.toLowerCase())) {
+      toast.error('Only PDF, JPEG, JPG, and PNG files are allowed')
+      throw new Error('Invalid file type')
+    }
+    
+    // Validate file size - max 20MB
+    const maxSize = 20 * 1024 * 1024 // 20MB in bytes
+    if (file.size > maxSize) {
+      toast.error('File size must be less than 20MB')
+      throw new Error('File too large')
+    }
 
     const filePath = `${userId}/${type}-${Date.now()}-${file.name}`
     const { error } = await supabase.storage
@@ -220,6 +234,22 @@ export default function MyProfilePage() {
   }
 
   const handleDocumentChange = (type: string, file: File | null) => {
+    if (file) {
+      // Validate file type
+      const allowedTypes = ['application/pdf', 'image/jpeg', 'image/jpg', 'image/png']
+      if (!allowedTypes.includes(file.type.toLowerCase())) {
+        toast.error('Only PDF, JPEG, JPG, and PNG files are allowed')
+        return
+      }
+      
+      // Validate file size - max 20MB
+      const maxSize = 20 * 1024 * 1024 // 20MB in bytes
+      if (file.size > maxSize) {
+        toast.error('File size must be less than 20MB')
+        return
+      }
+    }
+    
     setDocuments(prev => ({ ...prev, [type]: file }))
   }
 
@@ -457,13 +487,13 @@ export default function MyProfilePage() {
                 setProfileData({...profileData, address: value})
                 setValidationErrors(prev => ({ ...prev, address: validateAddress(value) }))
               }}
-              maxLength={60}
+              maxLength={100}
               className={validationErrors.address ? 'border-red-500 focus-visible:ring-red-500' : ''}
             />
             {validationErrors.address && (
               <p className="text-xs text-red-600">{validationErrors.address}</p>
             )}
-            <p className="text-xs text-muted-foreground">{profileData.address.length}/60 characters</p>
+            <p className="text-xs text-muted-foreground">{profileData.address.length}/100 characters</p>
           </div>
         </CardContent>
       </Card>
