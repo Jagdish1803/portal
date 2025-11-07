@@ -324,41 +324,8 @@ export default function MyAttendanceAnalyticsPage() {
         </div>
       ) : (
         <>
-          {/* Performance Score */}
-          <Card className="bg-gradient-to-br from-blue-50 to-indigo-50 border-blue-200">
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <div>
-                  <CardTitle className="flex items-center gap-2">
-                    <Award className="h-5 w-5 text-blue-600" />
-                    Performance Score
-                  </CardTitle>
-                  <CardDescription>Based on attendance, hours, and consistency</CardDescription>
-                </div>
-                <div className="text-5xl font-bold text-blue-600">{performanceScore}</div>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <Progress value={performanceScore} className="h-3" />
-              <div className="mt-4 grid grid-cols-3 gap-4 text-sm">
-                <div>
-                  <div className="text-muted-foreground">Attendance Rate</div>
-                  <div className="font-semibold">{attendanceRate.toFixed(1)}%</div>
-                </div>
-                <div>
-                  <div className="text-muted-foreground">Goal Progress</div>
-                  <div className="font-semibold">{progressPercentage.toFixed(1)}%</div>
-                </div>
-                <div>
-                  <div className="text-muted-foreground">Days Met Goal</div>
-                  <div className="font-semibold">{stats.daysMetGoal}/{stats.daysWithHours}</div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Key Metrics */}
-          <div className="grid gap-4 md:grid-cols-4">
+          {/* Key Metrics Cards */}
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">Hours Worked</CardTitle>
@@ -366,10 +333,10 @@ export default function MyAttendanceAnalyticsPage() {
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold">{formatHoursToTime(totalHours)}</div>
-                <p className="text-xs text-muted-foreground">
+                <p className="text-xs text-muted-foreground mb-2">
                   of {formatHoursToTime(hoursGoal)} goal
                 </p>
-                <Progress value={progressPercentage} className="mt-2 h-2" />
+                <Progress value={progressPercentage} className="h-2" />
               </CardContent>
             </Card>
 
@@ -383,7 +350,7 @@ export default function MyAttendanceAnalyticsPage() {
                   {hoursRemaining > 0 ? formatHoursToTime(hoursRemaining) : '✓ Goal Met'}
                 </div>
                 {hoursRemaining > 0 && daysNeeded > 0 && (
-                  <p className="text-xs text-muted-foreground">
+                  <p className="text-xs text-muted-foreground mt-2">
                     ~{daysNeeded} days at current pace
                   </p>
                 )}
@@ -397,7 +364,7 @@ export default function MyAttendanceAnalyticsPage() {
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold text-purple-600">{formatHoursToTime(avgDailyHours)}</div>
-                <p className="text-xs text-muted-foreground">
+                <p className="text-xs text-muted-foreground mt-2">
                   Goal: {formatHoursToTime(minutesToHours(dailyGoalMinutes))}
                 </p>
               </CardContent>
@@ -410,9 +377,94 @@ export default function MyAttendanceAnalyticsPage() {
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold text-blue-600">{formatHoursToTime(overtimeHours)}</div>
-                <p className="text-xs text-muted-foreground">
+                <p className="text-xs text-muted-foreground mt-2">
                   {stats.daysWithOvertime} days with OT
                 </p>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Performance Score & Goal Progress */}
+          <div className="grid gap-4 md:grid-cols-2">
+            <Card className="bg-gradient-to-br from-blue-50 to-indigo-50 border-blue-200">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Award className="h-5 w-5 text-blue-600" />
+                  Performance Score
+                </CardTitle>
+                <CardDescription>Based on attendance, hours, and consistency</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <span className="text-4xl font-bold text-blue-600">{performanceScore}</span>
+                  <span className="text-sm text-muted-foreground">/ 100</span>
+                </div>
+                <Progress value={performanceScore} className="h-3" />
+                <div className="grid grid-cols-3 gap-4 pt-2">
+                  <div className="text-center">
+                    <div className="text-xs text-muted-foreground">Attendance</div>
+                    <div className="text-sm font-semibold">{attendanceRate.toFixed(1)}%</div>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-xs text-muted-foreground">Progress</div>
+                    <div className="text-sm font-semibold">{progressPercentage.toFixed(1)}%</div>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-xs text-muted-foreground">Days Met</div>
+                    <div className="text-sm font-semibold">{stats.daysMetGoal}/{stats.daysWithHours}</div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Target className="h-5 w-5" />
+                  Goal Progress
+                </CardTitle>
+                <CardDescription>Track your progress towards the hours goal</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-sm font-medium">Overall Progress</span>
+                    <span className="text-sm font-bold">{progressPercentage.toFixed(1)}%</span>
+                  </div>
+                  <Progress value={progressPercentage} className="h-3" />
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <div className="text-xs text-muted-foreground">Working Days</div>
+                    <div className="text-lg font-bold">{workingDays}</div>
+                  </div>
+                  <div>
+                    <div className="text-xs text-muted-foreground">Days Worked</div>
+                    <div className="text-lg font-bold">{stats.daysWithHours}</div>
+                  </div>
+                </div>
+
+                {hoursRemaining > 0 ? (
+                  <div className="bg-orange-50 border border-orange-200 rounded-lg p-3">
+                    <div className="flex items-start gap-2">
+                      <Target className="h-4 w-4 text-orange-600 mt-0.5 flex-shrink-0" />
+                      <div className="text-xs text-orange-700">
+                        <strong>{formatHoursToTime(hoursRemaining)}</strong> more hours needed
+                        {daysNeeded > 0 && <> • ~<strong>{daysNeeded} days</strong> at current pace</>}
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="bg-green-50 border border-green-200 rounded-lg p-3">
+                    <div className="flex items-start gap-2">
+                      <CheckCircle className="h-4 w-4 text-green-600 mt-0.5 flex-shrink-0" />
+                      <div className="text-xs text-green-700">
+                        <strong>Goal Achieved! 🎉</strong> You've met your hours goal for this period.
+                      </div>
+                    </div>
+                  </div>
+                )}
               </CardContent>
             </Card>
           </div>
@@ -428,83 +480,71 @@ export default function MyAttendanceAnalyticsPage() {
                 <CardDescription>Status breakdown for selected period</CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <CheckCircle className="h-4 w-4 text-green-600" />
-                      <span className="text-sm">Present Days</span>
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between text-sm">
+                      <div className="flex items-center gap-2">
+                        <CheckCircle className="h-4 w-4 text-green-600" />
+                        <span>Present Days</span>
+                      </div>
+                      <span className="font-semibold text-green-600">
+                        {stats.present} ({stats.totalRecords > 0 ? ((stats.present / stats.totalRecords) * 100).toFixed(0) : 0}%)
+                      </span>
                     </div>
-                    <div className="flex items-center gap-2">
-                      <span className="font-bold text-green-600">{stats.present}</span>
-                      <Badge variant="outline" className="bg-green-50 text-green-700">
-                        {stats.totalRecords > 0 ? ((stats.present / stats.totalRecords) * 100).toFixed(0) : 0}%
-                      </Badge>
-                    </div>
+                    <Progress 
+                      value={stats.totalRecords > 0 ? (stats.present / stats.totalRecords) * 100 : 0} 
+                      className="h-2 bg-green-100 [&>div]:bg-green-600" 
+                    />
                   </div>
                   
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <AlertCircle className="h-4 w-4 text-red-600" />
-                      <span className="text-sm">Absent Days</span>
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between text-sm">
+                      <div className="flex items-center gap-2">
+                        <AlertCircle className="h-4 w-4 text-red-600" />
+                        <span>Absent Days</span>
+                      </div>
+                      <span className="font-semibold text-red-600">
+                        {stats.absent} ({stats.totalRecords > 0 ? ((stats.absent / stats.totalRecords) * 100).toFixed(0) : 0}%)
+                      </span>
                     </div>
-                    <div className="flex items-center gap-2">
-                      <span className="font-bold text-red-600">{stats.absent}</span>
-                      <Badge variant="outline" className="bg-red-50 text-red-700">
-                        {stats.totalRecords > 0 ? ((stats.absent / stats.totalRecords) * 100).toFixed(0) : 0}%
-                      </Badge>
-                    </div>
+                    <Progress 
+                      value={stats.totalRecords > 0 ? (stats.absent / stats.totalRecords) * 100 : 0} 
+                      className="h-2 bg-red-100 [&>div]:bg-red-600" 
+                    />
                   </div>
 
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <Calendar className="h-4 w-4 text-yellow-600" />
-                      <span className="text-sm">Leave Days</span>
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between text-sm">
+                      <div className="flex items-center gap-2">
+                        <Calendar className="h-4 w-4 text-yellow-600" />
+                        <span>Leave Days</span>
+                      </div>
+                      <span className="font-semibold text-yellow-600">
+                        {stats.leave} ({stats.totalRecords > 0 ? ((stats.leave / stats.totalRecords) * 100).toFixed(0) : 0}%)
+                      </span>
                     </div>
-                    <div className="flex items-center gap-2">
-                      <span className="font-bold text-yellow-600">{stats.leave}</span>
-                      <Badge variant="outline" className="bg-yellow-50 text-yellow-700">
-                        {stats.totalRecords > 0 ? ((stats.leave / stats.totalRecords) * 100).toFixed(0) : 0}%
-                      </Badge>
-                    </div>
+                    <Progress 
+                      value={stats.totalRecords > 0 ? (stats.leave / stats.totalRecords) * 100 : 0} 
+                      className="h-2 bg-yellow-100 [&>div]:bg-yellow-600" 
+                    />
                   </div>
 
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <Clock className="h-4 w-4 text-orange-600" />
-                      <span className="text-sm">Late Days</span>
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between text-sm">
+                      <div className="flex items-center gap-2">
+                        <Clock className="h-4 w-4 text-orange-600" />
+                        <span>Late Days</span>
+                      </div>
+                      <span className="font-semibold text-orange-600">
+                        {stats.late} ({stats.totalRecords > 0 ? ((stats.late / stats.totalRecords) * 100).toFixed(0) : 0}%)
+                      </span>
                     </div>
-                    <div className="flex items-center gap-2">
-                      <span className="font-bold text-orange-600">{stats.late}</span>
-                      <Badge variant="outline" className="bg-orange-50 text-orange-700">
-                        {stats.totalRecords > 0 ? ((stats.late / stats.totalRecords) * 100).toFixed(0) : 0}%
-                      </Badge>
-                    </div>
+                    <Progress 
+                      value={stats.totalRecords > 0 ? (stats.late / stats.totalRecords) * 100 : 0} 
+                      className="h-2 bg-orange-100 [&>div]:bg-orange-600" 
+                    />
                   </div>
                 </div>
-
-                {statusData.length > 0 && (
-                  <div className="mt-6">
-                    <ResponsiveContainer width="100%" height={200}>
-                      <PieChart>
-                        <Pie
-                          data={statusData}
-                          cx="50%"
-                          cy="50%"
-                          labelLine={false}
-                          label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
-                          outerRadius={80}
-                          fill="#8884d8"
-                          dataKey="value"
-                        >
-                          {statusData.map((entry, index) => (
-                            <Cell key={`cell-${index}`} fill={entry.color} />
-                          ))}
-                        </Pie>
-                        <Tooltip />
-                      </PieChart>
-                    </ResponsiveContainer>
-                  </div>
-                )}
               </CardContent>
             </Card>
 
@@ -512,70 +552,53 @@ export default function MyAttendanceAnalyticsPage() {
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <BarChart3 className="h-5 w-5" />
-                  Goal Progress Details
+                  Additional Insights
                 </CardTitle>
-                <CardDescription>Track your progress towards the hours goal</CardDescription>
+                <CardDescription>Key metrics and consistency</CardDescription>
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
-                  <div>
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="text-sm font-medium">Overall Progress</span>
-                      <span className="text-sm font-bold">{progressPercentage.toFixed(1)}%</span>
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-muted-foreground">Consistency Score</span>
+                      <span className="font-semibold text-purple-600">
+                        {stats.daysWithHours > 0 ? ((stats.daysMetGoal / stats.daysWithHours) * 100).toFixed(0) : 0}%
+                      </span>
                     </div>
-                    <Progress value={progressPercentage} className="h-3" />
+                    <Progress 
+                      value={stats.daysWithHours > 0 ? (stats.daysMetGoal / stats.daysWithHours) * 100 : 0} 
+                      className="h-2 bg-purple-100 [&>div]:bg-purple-600" 
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Days you met daily goal: {stats.daysMetGoal}/{stats.daysWithHours}
+                    </p>
                   </div>
 
-                  <div className="grid grid-cols-2 gap-4 pt-4 border-t">
-                    <div>
-                      <div className="text-xs text-muted-foreground">Working Days</div>
-                      <div className="text-2xl font-bold">{workingDays}</div>
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-muted-foreground">Attendance Rate</span>
+                      <span className="font-semibold text-green-600">{attendanceRate.toFixed(1)}%</span>
                     </div>
-                    <div>
-                      <div className="text-xs text-muted-foreground">Days Worked</div>
-                      <div className="text-2xl font-bold">{stats.daysWithHours}</div>
-                    </div>
+                    <Progress 
+                      value={attendanceRate} 
+                      className="h-2 bg-green-100 [&>div]:bg-green-600" 
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      {stats.present} present / {stats.totalRecords} total days
+                    </p>
                   </div>
 
-                  <div className="grid grid-cols-2 gap-4 pt-4 border-t">
-                    <div>
-                      <div className="text-xs text-muted-foreground">Goal Hours</div>
-                      <div className="text-lg font-bold">{formatHoursToTime(hoursGoal)}</div>
-                    </div>
-                    <div>
-                      <div className="text-xs text-muted-foreground">Completed</div>
-                      <div className="text-lg font-bold text-green-600">{formatHoursToTime(totalHours)}</div>
-                    </div>
-                  </div>
-
-                  {hoursRemaining > 0 ? (
-                    <div className="bg-orange-50 border border-orange-200 rounded-lg p-4 mt-4">
-                      <div className="flex items-start gap-3">
-                        <Target className="h-5 w-5 text-orange-600 mt-0.5" />
-                        <div>
-                          <div className="font-semibold text-orange-900">Keep Going!</div>
-                          <div className="text-sm text-orange-700 mt-1">
-                            You need <strong>{formatHoursToTime(hoursRemaining)}</strong> more hours to reach your goal.
-                            {daysNeeded > 0 && (
-                              <> At your current pace, you'll reach it in approximately <strong>{daysNeeded} days</strong>.</>
-                            )}
-                          </div>
-                        </div>
+                  <div className="pt-4 border-t">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <div className="text-xs text-muted-foreground">Edited Records</div>
+                        <div className="text-2xl font-bold text-orange-600">{stats.editedRecords}</div>
                       </div>
+                      <Badge variant="outline" className="bg-orange-50 text-orange-700">
+                        {stats.totalRecords > 0 ? ((stats.editedRecords / stats.totalRecords) * 100).toFixed(0) : 0}%
+                      </Badge>
                     </div>
-                  ) : (
-                    <div className="bg-green-50 border border-green-200 rounded-lg p-4 mt-4">
-                      <div className="flex items-start gap-3">
-                        <CheckCircle className="h-5 w-5 text-green-600 mt-0.5" />
-                        <div>
-                          <div className="font-semibold text-green-900">Goal Achieved! 🎉</div>
-                          <div className="text-sm text-green-700 mt-1">
-                            You've successfully met your hours goal for this period. Great work!
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  )}
+                  </div>
                 </div>
               </CardContent>
             </Card>
@@ -660,47 +683,6 @@ export default function MyAttendanceAnalyticsPage() {
               </CardContent>
             </Card>
           )}
-
-          {/* Additional Insights */}
-          <div className="grid gap-4 md:grid-cols-3">
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-sm font-medium">Consistency Score</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="text-3xl font-bold text-purple-600">
-                  {stats.daysWithHours > 0 ? ((stats.daysMetGoal / stats.daysWithHours) * 100).toFixed(0) : 0}%
-                </div>
-                <p className="text-xs text-muted-foreground mt-2">
-                  Days you met daily goal: {stats.daysMetGoal}/{stats.daysWithHours}
-                </p>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-sm font-medium">Edited Records</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="text-3xl font-bold text-orange-600">{stats.editedRecords}</div>
-                <p className="text-xs text-muted-foreground mt-2">
-                  {stats.totalRecords > 0 ? ((stats.editedRecords / stats.totalRecords) * 100).toFixed(0) : 0}% of total records
-                </p>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-sm font-medium">Attendance Rate</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="text-3xl font-bold text-green-600">{attendanceRate.toFixed(1)}%</div>
-                <p className="text-xs text-muted-foreground mt-2">
-                  {stats.present} present / {stats.totalRecords} total days
-                </p>
-              </CardContent>
-            </Card>
-          </div>
         </>
       )}
     </div>
