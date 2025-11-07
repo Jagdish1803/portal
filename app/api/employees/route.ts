@@ -59,6 +59,7 @@ export async function GET(request: NextRequest) {
         dateOfBirth: true,
         contactNumber: true,
         profileCompleted: true,
+        passportPhoto: true,
         createdAt: true,
         updatedAt: true,
         teamLeader: {

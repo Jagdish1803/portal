@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
+import { EmployeeAvatar } from '@/components/employee-avatar'
 import { Separator } from '@/components/ui/separator'
 import { Search, Mail, Briefcase, Award, Eye, User } from 'lucide-react'
 
@@ -20,6 +20,7 @@ interface Employee {
   department?: string
   designation?: string
   isActive: boolean
+  passportPhoto?: string
 }
 
 export default function EmployeeDetailsPage() {
@@ -86,12 +87,11 @@ export default function EmployeeDetailsPage() {
               <CardHeader className="pb-3">
                 <div className="flex items-start justify-between">
                   <div className="flex items-center space-x-3">
-                    <Avatar className="h-12 w-12">
-                      <AvatarImage src="/placeholder.svg" />
-                      <AvatarFallback>
-                        {employee.name.split(' ').map((n: string) => n[0]).join('')}
-                      </AvatarFallback>
-                    </Avatar>
+                    <EmployeeAvatar 
+                      name={employee.name}
+                      passportPhoto={employee.passportPhoto}
+                      className="h-12 w-12"
+                    />
                     <div>
                       <CardTitle className="text-lg">{employee.name}</CardTitle>
                       <p className="text-sm text-muted-foreground">{employee.employeeCode}</p>
