@@ -33,11 +33,16 @@ export async function getCurrentEmployee() {
 }
 
 /**
- * Get employee by employee code
+ * Get employee by employee code (case-insensitive)
  */
 export async function getEmployeeByCode(employeeCode: string) {
-  const employee = await prisma.employee.findUnique({
-    where: { employeeCode },
+  const employee = await prisma.employee.findFirst({
+    where: { 
+      employeeCode: {
+        equals: employeeCode,
+        mode: 'insensitive'
+      }
+    },
   })
 
   return employee
@@ -77,12 +82,27 @@ export async function linkClerkUserToEmployee(
   employeeCode: string
 ) {
   try {
-    const employee = await prisma.employee.update({
-      where: { employeeCode },
+    // Find employee with case-insensitive search
+    const employee = await prisma.employee.findFirst({
+      where: { 
+        employeeCode: {
+          equals: employeeCode,
+          mode: 'insensitive'
+        }
+      },
+    })
+
+    if (!employee) {
+      return { success: false, error: "Employee code not found" }
+    }
+
+    // Update with the actual employee code from database
+    const updatedEmployee = await prisma.employee.update({
+      where: { id: employee.id },
       data: { clerkUserId },
     })
 
-    return { success: true, employee }
+    return { success: true, employee: updatedEmployee }
   } catch (error) {
     console.error("Error linking Clerk user to employee:", error)
     return { success: false, error: "Failed to link user to employee" }
@@ -91,11 +111,16 @@ export async function linkClerkUserToEmployee(
 
 /**
  * Verify if an employee code exists in the database
- * Used during sign-up validation
+ * Used during sign-up validation (case-insensitive)
  */
 export async function verifyEmployeeCode(employeeCode: string, currentUserId?: string) {
-  const employee = await prisma.employee.findUnique({
-    where: { employeeCode },
+  const employee = await prisma.employee.findFirst({
+    where: { 
+      employeeCode: {
+        equals: employeeCode,
+        mode: 'insensitive'
+      }
+    },
     select: {
       id: true,
       employeeCode: true,
@@ -149,8 +174,8 @@ export async function canAccessEmployeeData(targetEmployeeCode: string) {
     return true
   }
 
-  // Employees can only access their own data
-  return currentEmp.employeeCode === targetEmployeeCode
+  // Employees can only access their own data (case-insensitive comparison)
+  return currentEmp.employeeCode.toLowerCase() === targetEmployeeCode.toLowerCase()
 }
 
 /**
@@ -185,9 +210,14 @@ export async function requireAuth() {
  */
 export async function syncEmployeeToClerk(employeeCode: string) {
   try {
-    // Get employee from database
-    const employee = await prisma.employee.findUnique({
-      where: { employeeCode },
+    // Get employee from database (case-insensitive)
+    const employee = await prisma.employee.findFirst({
+      where: { 
+        employeeCode: {
+          equals: employeeCode,
+          mode: 'insensitive'
+        }
+      },
       select: {
         clerkUserId: true,
         role: true,

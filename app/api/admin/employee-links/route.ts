@@ -125,8 +125,8 @@ export async function PATCH(request: NextRequest) {
     })
 
     // If the Clerk user is already linked to a different employee, unlink it first
-    // This allows admins to manually reassign links if needed
-    if (existingLink && existingLink.employeeCode !== employeeCode) {
+    // This allows admins to manually reassign links if needed (case-insensitive comparison)
+    if (existingLink && existingLink.employeeCode.toLowerCase() !== employeeCode.toLowerCase()) {
       await prisma.employee.update({
         where: { id: existingLink.id },
         data: { clerkUserId: null }

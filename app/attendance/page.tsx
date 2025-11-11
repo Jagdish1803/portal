@@ -7,11 +7,14 @@ import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { Search, Clock, Upload, Calendar, MoreVertical, Edit, Trash2, ChevronLeft, ChevronRight } from 'lucide-react'
+import { Search, Clock, Upload, Calendar as CalendarIcon, MoreVertical, Edit, Trash2, ChevronLeft, ChevronRight } from 'lucide-react'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '@/components/ui/dialog'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
+import { Calendar } from '@/components/ui/calendar'
+import { format } from 'date-fns'
 import { toast } from 'sonner'
 import Link from 'next/link'
 
@@ -44,6 +47,7 @@ export default function AttendanceRecordsPage() {
   const [employeeSearch, setEmployeeSearch] = useState('')
   const [salaryCycleFilter, setSalaryCycleFilter] = useState('current')
   const [quickFilter, setQuickFilter] = useState('')
+  const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date())
   const [isUploadDialogOpen, setIsUploadDialogOpen] = useState(false)
   const [uploading, setUploading] = useState(false)
   const [uploadDate, setUploadDate] = useState(new Date().toISOString().split('T')[0])
@@ -308,7 +312,17 @@ export default function AttendanceRecordsPage() {
       }
     }
     
-    return matchesSearch && matchesStatus && matchesQuickFilter
+    // Calendar date filter
+    let matchesDateFilter = true
+    if (selectedDate && !quickFilter) {
+      const recordDate = new Date(record.date)
+      recordDate.setHours(0, 0, 0, 0)
+      const filterDate = new Date(selectedDate)
+      filterDate.setHours(0, 0, 0, 0)
+      matchesDateFilter = recordDate.getTime() === filterDate.getTime()
+    }
+    
+    return matchesSearch && matchesStatus && matchesQuickFilter && matchesDateFilter
   })
 
   // Pagination logic
@@ -344,6 +358,7 @@ export default function AttendanceRecordsPage() {
     setStatusFilter('all')
     setSalaryCycleFilter('current')
     setQuickFilter('')
+    setSelectedDate(undefined)
     setCurrentPage(1)
   }
 
@@ -654,14 +669,43 @@ export default function AttendanceRecordsPage() {
                 <Label htmlFor="edit-overtime" className="text-sm font-medium mb-2 block">Overtime</Label>
                 <Input
                   id="edit-overtime"
-                  type="time"
+                  type="text"
+                  placeholder="HH:MM (e.g., 01:30)"
                   value={editForm.overtime}
                   onChange={(e) => {
-                    setEditForm(prev => ({
-                      ...prev,
-                      overtime: e.target.value
-                    }))
+                    const value = e.target.value
+                    // Allow only digits and colon
+                    if (value === '' || /^[0-9:]*$/.test(value)) {
+                      setEditForm(prev => ({
+                        ...prev,
+                        overtime: value
+                      }))
+                    }
                   }}
+                  onBlur={(e) => {
+                    let value = e.target.value.replace(/[^0-9]/g, '')
+                    
+                    if (value === '') {
+                      setEditForm(prev => ({ ...prev, overtime: '00:00' }))
+                      return
+                    }
+                    
+                    // Auto-format based on input length
+                    if (value.length <= 2) {
+                      // Just hours: "2" -> "02:00"
+                      value = value.padStart(2, '0') + ':00'
+                    } else if (value.length === 3) {
+                      // "245" -> "02:45"
+                      value = value[0].padStart(2, '0') + ':' + value.substring(1)
+                    } else {
+                      // "0245" -> "02:45"
+                      value = value.substring(0, value.length - 2).padStart(2, '0') + ':' + value.substring(value.length - 2)
+                    }
+                    
+                    setEditForm(prev => ({ ...prev, overtime: value }))
+                  }}
+                  className="font-mono"
+                  maxLength={5}
                 />
               </div>
 
@@ -867,6 +911,35 @@ export default function AttendanceRecordsPage() {
               >
                 This Month
               </Button>
+              
+              {/* Calendar Date Picker */}
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-8 px-3 text-sm"
+                  >
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {selectedDate ? format(selectedDate, "PPP") : "Pick a date"}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar
+                    mode="single"
+                    selected={selectedDate}
+                    onSelect={(date) => {
+                      setSelectedDate(date)
+                      if (date) {
+                        setQuickFilter('')
+                        setCurrentPage(1)
+                      }
+                    }}
+                    initialFocus
+                  />
+                </PopoverContent>
+              </Popover>
+              
               <Button 
                 variant="ghost" 
                 size="sm" 

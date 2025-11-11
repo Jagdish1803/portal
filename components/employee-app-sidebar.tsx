@@ -13,6 +13,12 @@ import {
   Shield,
   ArrowLeft,
   Coffee,
+  Trophy,
+  Award,
+  Gift,
+  TrendingUp,
+  Coins,
+  ShieldAlert,
 } from "lucide-react"
 
 import { NavMain } from "@/components/nav-main"
@@ -70,12 +76,44 @@ const data = {
         },
       ],
     },
+    {
+      title: "Gamification",
+      url: "/employee-panel/gamification",
+      icon: Trophy,
+      items: [
+        {
+          title: "My Points & Coins",
+          url: "/employee-panel/gamification",
+          icon: Coins,
+        },
+        {
+          title: "Achievements",
+          url: "/employee-panel/gamification?tab=achievements",
+          icon: Award,
+        },
+        {
+          title: "Rewards",
+          url: "/employee-panel/gamification?tab=rewards",
+          icon: Gift,
+        },
+        {
+          title: "Leaderboard",
+          url: "/employee-panel/gamification?tab=leaderboard",
+          icon: TrendingUp,
+        },
+      ],
+    },
   ],
   navSecondary: [
     {
       title: "My Issues",
       url: "/employee-panel/my-issues",
       icon: AlertCircle,
+    },
+    {
+      title: "My Penalties",
+      url: "/employee-panel/my-penalties",
+      icon: ShieldAlert,
     },
     {
       title: "My Profile",

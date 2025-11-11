@@ -20,6 +20,12 @@ import {
   Package,
   UserCircle,
   Coffee,
+  Trophy,
+  Award,
+  Gift,
+  TrendingUp,
+  Coins,
+  FileText,
 } from "lucide-react"
 
 import { NavMain } from "@/components/nav-main"
@@ -85,6 +91,10 @@ const data = {
       icon: BarChart3,
       items: [
         {
+          title: "Leaderboard",
+          url: "/flowace/leaderboard",
+        },
+        {
           title: "Edited Records",
           url: "/flowace/edited-records",
         },
@@ -147,6 +157,37 @@ const data = {
         {
           title: "Employee Breaks",
           url: "/admin/breaks/employees",
+        },
+      ],
+    },
+    {
+      title: "Gamification",
+      url: "/admin/gamification",
+      icon: Trophy,
+      items: [
+        {
+          title: "Overview",
+          url: "/admin/gamification",
+        },
+        {
+          title: "Achievements",
+          url: "/admin/gamification/achievements",
+        },
+        {
+          title: "Rewards",
+          url: "/admin/gamification/rewards",
+        },
+        {
+          title: "Leaderboard",
+          url: "/admin/gamification/leaderboard",
+        },
+        {
+          title: "Coin Redemptions",
+          url: "/admin/gamification/redemptions",
+        },
+        {
+          title: "Employee Progress",
+          url: "/admin/gamification/employee-progress",
         },
       ],
     },

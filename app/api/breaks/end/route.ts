@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { PrismaClient } from '@prisma/client'
+import { awardPoints, POINT_VALUES } from '@/lib/gamification'
 
 const prisma = new PrismaClient()
 
@@ -53,6 +54,17 @@ export async function POST(request: NextRequest) {
         isActive: false,
       },
     })
+
+    // Award points for compliant break (15-60 minutes)
+    if (durationMinutes >= 15 && durationMinutes <= 60) {
+      awardPoints({
+        employeeId: parseInt(employeeId),
+        points: POINT_VALUES.BREAK_COMPLIANT,
+        type: 'earned',
+        description: 'Compliant break duration',
+        reference: `break:${updatedBreak.id}`
+      }).catch((err) => console.error('Error awarding break points:', err))
+    }
 
     return NextResponse.json({
       success: true,

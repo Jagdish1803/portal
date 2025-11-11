@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { PrismaClient } from '@prisma/client'
+import { awardPoints, POINT_VALUES } from '@/lib/gamification'
 
 const prisma = new PrismaClient()
 
@@ -178,6 +179,11 @@ export async function POST(request: NextRequest) {
       return { logs: createdLogs, submissionStatus }
     })
 
+    // Award points for tag submission (run in background)
+    awardTagSubmissionPoints(parseInt(employeeId), result.logs, selectedDate, result.submissionStatus).catch((err: any) =>
+      console.error('Error awarding tag submission points:', err)
+    )
+
     return NextResponse.json({
       success: true,
       data: result.logs,
@@ -195,5 +201,36 @@ export async function POST(request: NextRequest) {
       },
       { status: 500 }
     )
+  }
+}
+
+// Helper function to award points for tag submissions
+async function awardTagSubmissionPoints(employeeId: number, logs: any[], submissionDate: Date, submissionStatus: any) {
+  try {
+    // Award base points for submitting tags
+    await awardPoints({
+      employeeId,
+      points: POINT_VALUES.TAG_SUBMITTED,
+      type: 'earned',
+      description: 'Tags submitted',
+      reference: `submission:${submissionStatus.id}`
+    })
+
+    // Check if submitted on time (before deadline - assuming 11:59 PM of the day)
+    const submissionTime = new Date(submissionStatus.submissionTime)
+    const deadlineDate = new Date(submissionDate)
+    deadlineDate.setHours(23, 59, 59, 999)
+
+    if (submissionTime <= deadlineDate) {
+      await awardPoints({
+        employeeId,
+        points: POINT_VALUES.TAG_ON_TIME,
+        type: 'bonus',
+        description: 'On-time submission bonus',
+        reference: `submission:${submissionStatus.id}`
+      })
+    }
+  } catch (error) {
+    console.error('Error awarding tag submission points:', error)
   }
 }

@@ -1,7 +1,7 @@
 'use client';
 
-import React, { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import React, { useState, useEffect } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
 import { RoleGuard } from '@/components/role-guard';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -16,8 +16,14 @@ import { toast } from 'sonner';
 
 export default function CreateActionPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [activeTab, setActiveTab] = useState('warning');
   const [submitting, setSubmitting] = useState(false);
+  
+  // Get edit mode parameters from URL
+  const editType = searchParams.get('type'); // 'warning' or 'penalty'
+  const editId = searchParams.get('id');
+  const isEditMode = !!(editType && editId);
 
   // Warning form state
   const [warningForm, setWarningForm] = useState({
@@ -48,6 +54,64 @@ export default function CreateActionPage() {
 
   const employees = employeesResponse?.data || [];
 
+  // Fetch existing warning data if editing
+  const { data: existingWarning, isLoading: loadingWarning } = useQuery({
+    queryKey: ['warning', editId],
+    queryFn: async () => {
+      const response = await fetch(`/api/warnings/${editId}`);
+      if (!response.ok) throw new Error('Failed to fetch warning');
+      return response.json();
+    },
+    enabled: isEditMode && editType === 'warning' && !!editId,
+  });
+
+  // Fetch existing penalty data if editing
+  const { data: existingPenalty, isLoading: loadingPenalty } = useQuery({
+    queryKey: ['penalty', editId],
+    queryFn: async () => {
+      const response = await fetch(`/api/penalties/${editId}`);
+      if (!response.ok) throw new Error('Failed to fetch penalty');
+      return response.json();
+    },
+    enabled: isEditMode && editType === 'penalty' && !!editId,
+  });
+
+  // Set active tab based on edit type
+  useEffect(() => {
+    if (editType === 'warning') {
+      setActiveTab('warning');
+    } else if (editType === 'penalty') {
+      setActiveTab('penalty');
+    }
+  }, [editType]);
+
+  // Populate warning form when editing
+  useEffect(() => {
+    if (existingWarning?.data) {
+      const warning = existingWarning.data;
+      setWarningForm({
+        employeeId: warning.employeeId.toString(),
+        warningType: warning.warningType,
+        warningMessage: warning.warningMessage,
+        severity: warning.severity,
+      });
+    }
+  }, [existingWarning]);
+
+  // Populate penalty form when editing
+  useEffect(() => {
+    if (existingPenalty?.data) {
+      const penalty = existingPenalty.data;
+      setPenaltyForm({
+        employeeId: penalty.employeeId.toString(),
+        penaltyType: penalty.penaltyType,
+        amount: penalty.amount?.toString() || '',
+        description: penalty.description,
+        penaltyDate: penalty.penaltyDate.split('T')[0],
+      });
+    }
+  }, [existingPenalty]);
+
   const handleWarningSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -58,21 +122,29 @@ export default function CreateActionPage() {
 
     try {
       setSubmitting(true);
-      const response = await fetch('/api/warnings', {
-        method: 'POST',
+      
+      const url = isEditMode && editType === 'warning' 
+        ? `/api/warnings/${editId}` 
+        : '/api/warnings';
+      
+      const method = isEditMode && editType === 'warning' ? 'PATCH' : 'POST';
+      
+      const response = await fetch(url, {
+        method,
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(warningForm)
       });
 
       if (response.ok) {
-        toast.success('Warning issued successfully');
+        toast.success(isEditMode ? 'Warning updated successfully' : 'Warning issued successfully');
         router.push('/admin');
       } else {
-        toast.error('Failed to issue warning');
+        const error = await response.json();
+        toast.error(error.message || `Failed to ${isEditMode ? 'update' : 'issue'} warning`);
       }
     } catch (error) {
-      console.error('Error creating warning:', error);
-      toast.error('Failed to issue warning');
+      console.error('Error with warning:', error);
+      toast.error(`Failed to ${isEditMode ? 'update' : 'issue'} warning`);
     } finally {
       setSubmitting(false);
     }
@@ -88,21 +160,29 @@ export default function CreateActionPage() {
 
     try {
       setSubmitting(true);
-      const response = await fetch('/api/penalties', {
-        method: 'POST',
+      
+      const url = isEditMode && editType === 'penalty' 
+        ? `/api/penalties/${editId}` 
+        : '/api/penalties';
+      
+      const method = isEditMode && editType === 'penalty' ? 'PATCH' : 'POST';
+      
+      const response = await fetch(url, {
+        method,
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(penaltyForm)
       });
 
       if (response.ok) {
-        toast.success('Penalty created successfully');
+        toast.success(isEditMode ? 'Penalty updated successfully' : 'Penalty created successfully');
         router.push('/admin');
       } else {
-        toast.error('Failed to create penalty');
+        const error = await response.json();
+        toast.error(error.message || `Failed to ${isEditMode ? 'update' : 'create'} penalty`);
       }
     } catch (error) {
-      console.error('Error creating penalty:', error);
-      toast.error('Failed to create penalty');
+      console.error('Error with penalty:', error);
+      toast.error(`Failed to ${isEditMode ? 'update' : 'create'} penalty`);
     } finally {
       setSubmitting(false);
     }
@@ -117,27 +197,40 @@ export default function CreateActionPage() {
             <ArrowLeft className="h-4 w-4" />
           </Button>
           <div>
-            <h1 className="text-3xl font-bold tracking-tight">New Action</h1>
+            <h1 className="text-3xl font-bold tracking-tight">
+              {isEditMode ? 'Edit Action' : 'New Action'}
+            </h1>
             <p className="text-muted-foreground">
-              Create a new warning or penalty
+              {isEditMode ? 'Update an existing warning or penalty' : 'Create a new warning or penalty'}
             </p>
           </div>
         </div>
 
-        {/* Tabs */}
-        <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="grid w-full grid-cols-2">
-            <TabsTrigger value="warning">Warning</TabsTrigger>
-            <TabsTrigger value="penalty">Penalty</TabsTrigger>
-          </TabsList>
+        {/* Loading state for edit mode */}
+        {isEditMode && (loadingWarning || loadingPenalty) ? (
+          <div className="flex items-center justify-center py-12">
+            <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+          </div>
+        ) : (
+          <>
+            {/* Tabs */}
+            <Tabs value={activeTab} onValueChange={setActiveTab}>
+              <TabsList className="grid w-full grid-cols-2">
+                <TabsTrigger value="warning" disabled={isEditMode && editType !== 'warning'}>
+                  Warning
+                </TabsTrigger>
+                <TabsTrigger value="penalty" disabled={isEditMode && editType !== 'penalty'}>
+                  Penalty
+                </TabsTrigger>
+              </TabsList>
 
           {/* Warning Form */}
           <TabsContent value="warning">
             <Card>
               <CardHeader>
-                <CardTitle>Issue Warning</CardTitle>
+                <CardTitle>{isEditMode ? 'Edit Warning' : 'Issue Warning'}</CardTitle>
                 <CardDescription>
-                  Create a disciplinary warning for an employee
+                  {isEditMode ? 'Update the warning details' : 'Create a disciplinary warning for an employee'}
                 </CardDescription>
               </CardHeader>
               <CardContent>
@@ -163,13 +256,22 @@ export default function CreateActionPage() {
 
                   <div className="space-y-2">
                     <Label htmlFor="warning-type">Warning Type *</Label>
-                    <Input
-                      id="warning-type"
-                      placeholder="e.g., Late Arrival, Absence, Performance"
-                      value={warningForm.warningType}
-                      onChange={(e) => setWarningForm({...warningForm, warningType: e.target.value})}
-                      required
-                    />
+                    <Select 
+                      value={warningForm.warningType} 
+                      onValueChange={(value) => setWarningForm({...warningForm, warningType: value})}
+                    >
+                      <SelectTrigger id="warning-type">
+                        <SelectValue placeholder="Select warning type" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="ATTENDANCE">Attendance</SelectItem>
+                        <SelectItem value="LEAVE_MISUSE">Leave Misuse</SelectItem>
+                        <SelectItem value="BREAK_EXCEEDED">Break Exceeded</SelectItem>
+                        <SelectItem value="WORK_QUALITY">Work Quality</SelectItem>
+                        <SelectItem value="BEHAVIORAL">Behavioral</SelectItem>
+                        <SelectItem value="SYSTEM_MISUSE">System Misuse</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </div>
 
                   <div className="space-y-2">
@@ -185,6 +287,7 @@ export default function CreateActionPage() {
                         <SelectItem value="LOW">Low</SelectItem>
                         <SelectItem value="MEDIUM">Medium</SelectItem>
                         <SelectItem value="HIGH">High</SelectItem>
+                        <SelectItem value="CRITICAL">Critical</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
@@ -209,10 +312,10 @@ export default function CreateActionPage() {
                       {submitting ? (
                         <>
                           <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                          Issuing...
+                          {isEditMode ? 'Updating...' : 'Issuing...'}
                         </>
                       ) : (
-                        'Issue Warning'
+                        isEditMode ? 'Update Warning' : 'Issue Warning'
                       )}
                     </Button>
                   </div>
@@ -225,9 +328,9 @@ export default function CreateActionPage() {
           <TabsContent value="penalty">
             <Card>
               <CardHeader>
-                <CardTitle>Create Penalty</CardTitle>
+                <CardTitle>{isEditMode ? 'Edit Penalty' : 'Create Penalty'}</CardTitle>
                 <CardDescription>
-                  Apply a financial or disciplinary penalty
+                  {isEditMode ? 'Update the penalty details' : 'Apply a penalty to an employee'}
                 </CardDescription>
               </CardHeader>
               <CardContent>
@@ -253,13 +356,19 @@ export default function CreateActionPage() {
 
                   <div className="space-y-2">
                     <Label htmlFor="penalty-type">Penalty Type *</Label>
-                    <Input
-                      id="penalty-type"
-                      placeholder="e.g., Late Fine, Absence Deduction"
-                      value={penaltyForm.penaltyType}
-                      onChange={(e) => setPenaltyForm({...penaltyForm, penaltyType: e.target.value})}
-                      required
-                    />
+                    <Select 
+                      value={penaltyForm.penaltyType} 
+                      onValueChange={(value) => setPenaltyForm({...penaltyForm, penaltyType: value})}
+                    >
+                      <SelectTrigger id="penalty-type">
+                        <SelectValue placeholder="Select penalty type" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="UNAUTHORIZED_ABSENCE">Unauthorized Absence</SelectItem>
+                        <SelectItem value="POLICY_VIOLATION">Policy Violation</SelectItem>
+                        <SelectItem value="OTHER">Other</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </div>
 
                   <div className="space-y-2">
@@ -305,10 +414,10 @@ export default function CreateActionPage() {
                       {submitting ? (
                         <>
                           <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                          Creating...
+                          {isEditMode ? 'Updating...' : 'Creating...'}
                         </>
                       ) : (
-                        'Create Penalty'
+                        isEditMode ? 'Update Penalty' : 'Create Penalty'
                       )}
                     </Button>
                   </div>
@@ -317,6 +426,8 @@ export default function CreateActionPage() {
             </Card>
           </TabsContent>
         </Tabs>
+          </>
+        )}
       </div>
     </RoleGuard>
   );

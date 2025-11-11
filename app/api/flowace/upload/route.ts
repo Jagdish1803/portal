@@ -3,6 +3,7 @@ import { writeFile, mkdir } from 'fs/promises'
 import { join } from 'path'
 import { existsSync } from 'fs'
 import { prisma } from '@/lib/prisma'
+import { awardPoints, POINT_VALUES } from '@/lib/gamification'
 
 export async function POST(request: NextRequest) {
   let file: File | null = null
@@ -110,6 +111,7 @@ export async function POST(request: NextRequest) {
     // Save records to database
     let savedCount = 0
     const uploadDate = new Date(date)
+    const createdRecords: any[] = []
     
     for (const record of records) {
       try {
@@ -148,7 +150,7 @@ export async function POST(request: NextRequest) {
           return parseFloat(percentStr.replace('%', ''))
         }
         
-        await prisma.flowaceRecord.upsert({
+        const flowaceRecord = await prisma.flowaceRecord.upsert({
           where: {
             employee_date_batch: {
               employeeCode: uniqueIdentifier,
@@ -240,6 +242,7 @@ export async function POST(request: NextRequest) {
           }
         })
         
+        createdRecords.push(flowaceRecord)
         savedCount++
       } catch (error: any) {
         console.error('Error saving record:', record['Member Name'], error.message)
@@ -248,34 +251,35 @@ export async function POST(request: NextRequest) {
     
     console.log('Records saved to database:', savedCount)
     
-    // Save upload history
+    // Award points for productivity (run in background)
+    awardProductivityPoints(createdRecords).catch((err) =>
+      console.error('Error awarding productivity points:', err)
+    )
+    
+    // Save upload history directly to database
     try {
-      const uploadHistoryEntry = {
-        id: batchId,
-        filename: file.name,
-        fileType: 'flowace_csv',
-        status: 'COMPLETED',
-        totalRecords: records.length,
-        processedRecords: savedCount,
-        errorRecords: records.length - savedCount,
-        uploadedAt: new Date().toISOString(),
-        completedAt: new Date().toISOString(),
-        batchId: batchId,
-        date: uploadDate.toISOString(),
-        summary: {
-          date: date,
-          recordsFound: records.length,
-          recordsSaved: savedCount,
-          recordsFailed: records.length - savedCount
+      await prisma.uploadHistory.create({
+        data: {
+          filename: file.name,
+          fileType: 'flowace_csv',
+          status: 'COMPLETED',
+          totalRecords: records.length,
+          processedRecords: savedCount,
+          errorRecords: records.length - savedCount,
+          uploadedAt: new Date(),
+          completedAt: new Date(),
+          batchId: batchId,
+          summary: {
+            date: date,
+            recordsFound: records.length,
+            recordsSaved: savedCount,
+            recordsFailed: records.length - savedCount,
+            uploadFilename: filename
+          }
         }
-      }
+      })
 
-      // Save to upload history
-      await fetch(`${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/upload-history`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(uploadHistoryEntry)
-      }).catch(err => console.error('Failed to save upload history:', err))
+      console.log('Upload history saved to database')
 
     } catch (historyError) {
       console.error('Error saving upload history:', historyError)
@@ -297,29 +301,27 @@ export async function POST(request: NextRequest) {
     
     // Save failed upload to history
     try {
-      const failedHistoryEntry = {
-        id: `flowace_failed_${Date.now()}`,
-        filename: file?.name || 'unknown',
-        fileType: 'flowace_csv',
-        status: 'FAILED',
-        totalRecords: 0,
-        processedRecords: 0,
-        errorRecords: 0,
-        uploadedAt: new Date().toISOString(),
-        completedAt: new Date().toISOString(),
-        batchId: `flowace_failed_${Date.now()}`,
-        date: date || new Date().toISOString(),
-        errors: {
-          message: error.message,
-          stack: error.stack
+      const failedBatchId = `flowace_failed_${Date.now()}`
+      
+      await prisma.uploadHistory.create({
+        data: {
+          filename: file?.name || 'unknown',
+          fileType: 'flowace_csv',
+          status: 'FAILED',
+          totalRecords: 0,
+          processedRecords: 0,
+          errorRecords: 0,
+          uploadedAt: new Date(),
+          completedAt: new Date(),
+          batchId: failedBatchId,
+          errors: {
+            message: error.message,
+            stack: error.stack
+          }
         }
-      }
+      })
 
-      await fetch(`${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/upload-history`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(failedHistoryEntry)
-      }).catch(err => console.error('Failed to save failed upload history:', err))
+      console.log('Failed upload history saved to database')
 
     } catch (historyError) {
       console.error('Error saving failed upload history:', historyError)
@@ -336,4 +338,41 @@ export async function POST(request: NextRequest) {
 function extractCodeFromEmail(email: string): string {
   if (!email) return 'UNKNOWN'
   return email.split('@')[0].toUpperCase()
+}
+
+// Helper function to award points based on productivity
+async function awardProductivityPoints(records: any[]) {
+  for (const record of records) {
+    try {
+      if (!record.employeeId) continue
+
+      const productivity = record.productivityPercentage || 0
+
+      let points = 0
+      let description = ''
+
+      if (productivity >= 90) {
+        points = POINT_VALUES.PRODUCTIVITY_HIGH
+        description = 'High productivity (90%+)'
+      } else if (productivity >= 75) {
+        points = POINT_VALUES.PRODUCTIVITY_MEDIUM
+        description = 'Good productivity (75-89%)'
+      } else if (productivity >= 60) {
+        points = POINT_VALUES.PRODUCTIVITY_LOW
+        description = 'Moderate productivity (60-74%)'
+      }
+
+      if (points > 0) {
+        await awardPoints({
+          employeeId: record.employeeId,
+          points,
+          type: 'earned',
+          description,
+          reference: `flowace:${record.id}`
+        })
+      }
+    } catch (error) {
+      console.error(`Error awarding productivity points for record ${record.id}:`, error)
+    }
+  }
 }

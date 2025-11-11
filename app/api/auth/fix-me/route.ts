@@ -24,10 +24,16 @@ export async function POST(request: NextRequest) {
 
     const employeeCode = user.username.toLowerCase()
 
-    // Find employee in database
-    const employee = await prisma.employee.findUnique({
-      where: { employeeCode },
+    // Find employee in database (case-insensitive)
+    const employee = await prisma.employee.findFirst({
+      where: { 
+        employeeCode: {
+          equals: employeeCode,
+          mode: 'insensitive'
+        }
+      },
       select: {
+        id: true,
         employeeCode: true,
         role: true,
         isActive: true,
@@ -43,7 +49,7 @@ export async function POST(request: NextRequest) {
 
     // Update database link
     await prisma.employee.update({
-      where: { employeeCode },
+      where: { id: employee.id },
       data: { clerkUserId: userId }
     })
 

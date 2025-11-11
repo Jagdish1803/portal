@@ -1,8 +1,8 @@
 'use client';
 
-import React, { useState } from 'react';
-import { useRouter } from 'next/navigation';
-import { useQuery } from '@tanstack/react-query';
+import React, { useState, useEffect, Suspense } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { RoleGuard } from '@/components/role-guard';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -17,7 +17,10 @@ import {
   Filter, 
   Plus,
   FileText,
-  Loader2
+  Loader2,
+  MoreVertical,
+  Edit,
+  Trash2
 } from 'lucide-react';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { toast } from 'sonner';
@@ -61,11 +64,21 @@ interface Penalty {
   };
 }
 
-export default function AdminPage() {
+function AdminPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState('warnings');
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('ALL');
+
+  // Handle tab parameter from URL (for penalty reminder navigation)
+  useEffect(() => {
+    const tab = searchParams.get('tab');
+    if (tab === 'penalties') {
+      setActiveTab('penalties');
+    }
+  }, [searchParams]);
 
   // Fetch warnings
   const { data: warningsResponse, isLoading: warningsLoading } = useQuery({
@@ -89,6 +102,66 @@ export default function AdminPage() {
 
   const warnings = warningsResponse?.data || [];
   const penalties = penaltiesResponse?.data || [];
+
+  // Delete warning mutation
+  const deleteWarningMutation = useMutation({
+    mutationFn: async (warningId: number) => {
+      const response = await fetch(`/api/warnings/${warningId}`, {
+        method: 'DELETE',
+      });
+      if (!response.ok) throw new Error('Failed to delete warning');
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['warnings'] });
+      toast.success('Warning deleted successfully');
+    },
+    onError: (error: any) => {
+      toast.error(error.message || 'Failed to delete warning');
+    },
+  });
+
+  // Delete penalty mutation
+  const deletePenaltyMutation = useMutation({
+    mutationFn: async (penaltyId: number) => {
+      const response = await fetch(`/api/penalties/${penaltyId}`, {
+        method: 'DELETE',
+      });
+      if (!response.ok) throw new Error('Failed to delete penalty');
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['penalties'] });
+      toast.success('Penalty deleted successfully');
+    },
+    onError: (error: any) => {
+      toast.error(error.message || 'Failed to delete penalty');
+    },
+  });
+
+  // Handle delete warning
+  const handleDeleteWarning = (warningId: number) => {
+    if (confirm('Are you sure you want to delete this warning? This action cannot be undone.')) {
+      deleteWarningMutation.mutate(warningId);
+    }
+  };
+
+  // Handle delete penalty
+  const handleDeletePenalty = (penaltyId: number) => {
+    if (confirm('Are you sure you want to delete this penalty? This action cannot be undone.')) {
+      deletePenaltyMutation.mutate(penaltyId);
+    }
+  };
+
+  // Handle edit warning
+  const handleEditWarning = (warningId: number) => {
+    router.push(`/admin/create?type=warning&id=${warningId}`);
+  };
+
+  // Handle edit penalty
+  const handleEditPenalty = (penaltyId: number) => {
+    router.push(`/admin/create?type=penalty&id=${penaltyId}`);
+  };
 
   // Filter functions
   const filteredWarnings = warnings.filter((warning: Warning) => 
@@ -190,10 +263,8 @@ export default function AdminPage() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="ALL">All Statuses</SelectItem>
-                  <SelectItem value="ACTIVE">Active</SelectItem>
                   <SelectItem value="RESOLVED">Resolved</SelectItem>
                   <SelectItem value="APPLIED">Applied</SelectItem>
-                  <SelectItem value="SCHEDULED">Scheduled</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -239,10 +310,13 @@ export default function AdminPage() {
                         
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2 mb-2 flex-wrap">
-                            <h3 className="text-lg font-semibold">{warning.warningType}</h3>
-                            <Badge className={warning.severity === 'HIGH' ? 'bg-red-100 text-red-800' : 
-                                            warning.severity === 'MEDIUM' ? 'bg-yellow-100 text-yellow-800' : 
-                                            'bg-gray-100 text-gray-800'}>
+                            <h3 className="text-lg font-semibold">{warning.warningType.replace(/_/g, ' ')}</h3>
+                            <Badge className={
+                              warning.severity === 'CRITICAL' ? 'bg-purple-100 text-purple-800' :
+                              warning.severity === 'HIGH' ? 'bg-red-100 text-red-800' : 
+                              warning.severity === 'MEDIUM' ? 'bg-yellow-100 text-yellow-800' : 
+                              'bg-gray-100 text-gray-800'
+                            }>
                               {warning.severity}
                             </Badge>
                             <Badge className={warning.isActive ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'}>
@@ -257,11 +331,33 @@ export default function AdminPage() {
                           <p className="text-sm mb-3">{warning.warningMessage}</p>
                           
                           <div className="flex flex-wrap gap-4 text-sm text-muted-foreground">
-                            <span>📅 Issued: {new Date(warning.warningDate).toLocaleDateString()}</span>
-                            {warning.employee.department && <span>🏢 {warning.employee.department}</span>}
+                            <span>Issued: {new Date(warning.warningDate).toLocaleDateString()}</span>
+                            {warning.employee.department && <span>{warning.employee.department}</span>}
                           </div>
                         </div>
                       </div>
+                      
+                      {/* Actions Menu */}
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" size="icon" className="h-8 w-8">
+                            <MoreVertical className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem onClick={() => handleEditWarning(warning.id)}>
+                            <Edit className="mr-2 h-4 w-4" />
+                            Edit
+                          </DropdownMenuItem>
+                          <DropdownMenuItem 
+                            onClick={() => handleDeleteWarning(warning.id)}
+                            className="text-red-600"
+                          >
+                            <Trash2 className="mr-2 h-4 w-4" />
+                            Delete
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
                     </div>
                   </Card>
                 ))
@@ -311,10 +407,7 @@ export default function AdminPage() {
                           
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-2 mb-2 flex-wrap">
-                              <h3 className="text-lg font-semibold">{penalty.penaltyType}</h3>
-                              <Badge className={penalty.isPaid ? 'bg-gray-100 text-gray-800' : 'bg-red-100 text-red-800'}>
-                                {penalty.isPaid ? 'PAID' : 'UNPAID'}
-                              </Badge>
+                              <h3 className="text-lg font-semibold">{penalty.penaltyType.replace(/_/g, ' ')}</h3>
                             </div>
                             
                             <p className="text-sm text-muted-foreground mb-2">
@@ -324,13 +417,13 @@ export default function AdminPage() {
                             <p className="text-sm mb-3">{penalty.description}</p>
                             
                             <div className="flex flex-wrap gap-4 text-sm text-muted-foreground">
-                              <span>📅 Date: {new Date(penalty.penaltyDate).toLocaleDateString()}</span>
+                              <span>Date: {new Date(penalty.penaltyDate).toLocaleDateString()}</span>
                               {penalty.amount && (
                                 <span className="text-red-600 font-medium">
-                                  💰 ₹{penalty.amount.toFixed(2)}
+                                  ₹{penalty.amount.toFixed(2)}
                                 </span>
                               )}
-                              {penalty.employee.department && <span>🏢 {penalty.employee.department}</span>}
+                              {penalty.employee.department && <span>{penalty.employee.department}</span>}
                             </div>
                             
                             {penalty.notes && (
@@ -340,6 +433,28 @@ export default function AdminPage() {
                             )}
                           </div>
                         </div>
+                        
+                        {/* Actions Menu */}
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="icon" className="h-8 w-8">
+                              <MoreVertical className="h-4 w-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem onClick={() => handleEditPenalty(penalty.id)}>
+                              <Edit className="mr-2 h-4 w-4" />
+                              Edit
+                            </DropdownMenuItem>
+                            <DropdownMenuItem 
+                              onClick={() => handleDeletePenalty(penalty.id)}
+                              className="text-red-600"
+                            >
+                              <Trash2 className="mr-2 h-4 w-4" />
+                              Delete
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
                       </div>
                     </Card>
                   );
@@ -351,5 +466,18 @@ export default function AdminPage() {
       </Tabs>
     </div>
     </RoleGuard>
+  );
+}
+
+// Wrap with Suspense for useSearchParams
+export default function AdminPageWrapper() {
+  return (
+    <Suspense fallback={
+      <div className="flex items-center justify-center min-h-screen">
+        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      </div>
+    }>
+      <AdminPage />
+    </Suspense>
   );
 }

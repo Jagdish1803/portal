@@ -8,6 +8,7 @@ import { Badge } from '@/components/ui/badge'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
+import { Card, CardContent } from '@/components/ui/card'
 import { 
   Search, 
   Users, 
@@ -178,54 +179,6 @@ export default function EmployeeAnalyticsPage() {
         </div>
       </div>
 
-      {/* Statistics Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-        <div className="bg-white border border-gray-200 rounded-lg p-6 shadow-sm hover:shadow-md transition-shadow">
-          <div className="flex items-center justify-between">
-            <div className="flex-1">
-              <h3 className="text-sm font-medium text-gray-600 mb-1">Total Employees</h3>
-              <div className="flex items-baseline gap-1">
-                <p className="text-2xl font-bold text-gray-900">{totalEmployees}</p>
-                <span className="text-xs text-gray-500">active</span>
-              </div>
-            </div>
-            <div className="ml-4 p-2 bg-gray-50 rounded-lg">
-              <Users className="h-5 w-5 text-gray-600" />
-            </div>
-          </div>
-        </div>
-        
-        <div className="bg-white border border-gray-200 rounded-lg p-6 shadow-sm hover:shadow-md transition-shadow">
-          <div className="flex items-center justify-between">
-            <div className="flex-1">
-              <h3 className="text-sm font-medium text-gray-600 mb-1">Avg Attendance</h3>
-              <div className="flex items-baseline gap-1">
-                <p className="text-2xl font-bold text-blue-600">{avgAttendanceRate.toFixed(1)}%</p>
-                <span className="text-xs text-gray-500">rate</span>
-              </div>
-            </div>
-            <div className="ml-4 p-2 bg-blue-50 rounded-lg">
-              <BarChart3 className="h-5 w-5 text-blue-600" />
-            </div>
-          </div>
-        </div>
-        
-        <div className="bg-white border border-gray-200 rounded-lg p-6 shadow-sm hover:shadow-md transition-shadow">
-          <div className="flex items-center justify-between">
-            <div className="flex-1">
-              <h3 className="text-sm font-medium text-gray-600 mb-1">Total Hours</h3>
-              <div className="flex items-baseline gap-1">
-                <p className="text-2xl font-bold text-green-600">{totalHoursWorked.toFixed(0)}h</p>
-                <span className="text-xs text-gray-500">worked</span>
-              </div>
-            </div>
-            <div className="ml-4 p-2 bg-green-50 rounded-lg">
-              <Clock className="h-5 w-5 text-green-600" />
-            </div>
-          </div>
-        </div>
-      </div>
-
       {/* Filter & Search */}
       <div className="bg-white rounded-lg border border-gray-200 shadow-sm mb-6">
         <div className="px-6 py-4 border-b border-gray-100">
@@ -271,21 +224,26 @@ export default function EmployeeAnalyticsPage() {
       </div>
 
       {/* Analytics Table */}
-      <div className="bg-white rounded-lg border">
-        {isLoading ? (
-          <div className="text-center py-12">Loading...</div>
-        ) : (
-          <Table>
-            <TableHeader>
-              <TableRow className="border-b">
-                <TableHead className="text-left font-medium pl-6">Employee</TableHead>
-                <TableHead className="text-left font-medium">Code</TableHead>
-                <TableHead className="text-center font-medium">Present Days</TableHead>
-                <TableHead className="text-center font-medium">Total Hours</TableHead>
-                <TableHead className="text-center font-medium pr-6">Avg Hours/Day</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
+      <Card>
+        <CardContent className="p-0">
+          {isLoading ? (
+            <div className="text-center py-12">Loading...</div>
+          ) : sortedAnalytics.length === 0 ? (
+            <div className="text-center py-8">
+              <p className="text-muted-foreground">No employees found matching your criteria</p>
+            </div>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow className="border-b">
+                  <TableHead className="text-left font-medium pl-6">Employee</TableHead>
+                  <TableHead className="text-left font-medium">Code</TableHead>
+                  <TableHead className="text-center font-medium">Present Days</TableHead>
+                  <TableHead className="text-center font-medium">Total Hours</TableHead>
+                  <TableHead className="text-center font-medium pr-6">Avg Hours/Day</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
               {paginatedAnalytics.map((employee) => (
                 <TableRow key={employee.employeeId} className="hover:bg-gray-50/50 transition-colors">
                   <TableCell className="pl-6">
@@ -318,27 +276,20 @@ export default function EmployeeAnalyticsPage() {
                   </TableCell>
                 </TableRow>
               ))}
-            </TableBody>
-          </Table>
-        )}
-        
-        {sortedAnalytics.length === 0 && !isLoading && (
-          <TableRow>
-            <TableCell colSpan={5} className="text-center py-8">
-              <p className="text-muted-foreground">No employees found matching your criteria</p>
-            </TableCell>
-          </TableRow>
-        )}
-      </div>
+              </TableBody>
+            </Table>
+          )}
+        </CardContent>
+      </Card>
 
       {/* Pagination */}
       {totalAnalytics > 0 && (
-        <div className="flex items-center justify-between bg-white border rounded-lg px-6 py-4">
+        <div className="flex items-center justify-between bg-white border rounded-lg px-6 py-4 mt-6">
           <div className="flex items-center gap-4">
             <div className="flex items-center gap-2">
               <span className="text-sm text-muted-foreground">Show</span>
               <Select value={recordsPerPage.toString()} onValueChange={handleRecordsPerPageChange}>
-                <SelectTrigger className="w-20">
+                <SelectTrigger className="w-20 h-9">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -352,7 +303,7 @@ export default function EmployeeAnalyticsPage() {
               <span className="text-sm text-muted-foreground">entries</span>
             </div>
             <div className="text-sm text-muted-foreground">
-              Showing {startIndex + 1} to {Math.min(endIndex, totalAnalytics)} of {totalAnalytics} entries
+              Showing <span className="font-medium text-gray-900">{startIndex + 1}</span> to <span className="font-medium text-gray-900">{Math.min(endIndex, totalAnalytics)}</span> of <span className="font-medium text-gray-900">{totalAnalytics}</span> entries
             </div>
           </div>
 
@@ -362,6 +313,7 @@ export default function EmployeeAnalyticsPage() {
               size="sm"
               onClick={() => handlePageChange(currentPage - 1)}
               disabled={currentPage === 1}
+              className="gap-1"
             >
               <ChevronLeft className="h-4 w-4" />
               Previous
@@ -371,7 +323,7 @@ export default function EmployeeAnalyticsPage() {
               {Array.from({ length: totalPages }, (_, i) => i + 1)
                 .filter(page => {
                   const distance = Math.abs(page - currentPage)
-                  return distance <= 2 || page === 1 || page === totalPages
+                  return distance <= 1 || page === 1 || page === totalPages
                 })
                 .map((page, index, array) => {
                   const showEllipsis = index > 0 && page - array[index - 1] > 1
@@ -383,7 +335,7 @@ export default function EmployeeAnalyticsPage() {
                       <Button
                         variant={currentPage === page ? "default" : "outline"}
                         size="sm"
-                        className="w-8 h-8 p-0"
+                        className="min-w-9 h-9 px-3"
                         onClick={() => handlePageChange(page)}
                       >
                         {page}
@@ -398,6 +350,7 @@ export default function EmployeeAnalyticsPage() {
               size="sm"
               onClick={() => handlePageChange(currentPage + 1)}
               disabled={currentPage === totalPages}
+              className="gap-1"
             >
               Next
               <ChevronRight className="h-4 w-4" />

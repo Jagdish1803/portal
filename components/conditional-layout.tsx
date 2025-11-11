@@ -8,6 +8,7 @@ import { AppSidebar } from "@/components/app-sidebar"
 import { Separator } from "@/components/ui/separator"
 import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbPage, BreadcrumbSeparator } from "@/components/ui/breadcrumb"
 import { ChevronRight } from "lucide-react"
+import { AdminPenaltyReminder } from "@/components/admin-penalty-reminder"
 
 export function ConditionalLayout({ children }: { children: React.ReactNode }) {
   const { isSignedIn, isLoaded } = useAuth()
@@ -72,6 +73,7 @@ export function ConditionalLayout({ children }: { children: React.ReactNode }) {
     return (
       <SidebarProvider>
         <AppSidebar />
+        <AdminPenaltyReminder />
         <SidebarInset>
           <header className="flex h-16 shrink-0 items-center gap-2 px-4">
             <SidebarTrigger className="-ml-1" />

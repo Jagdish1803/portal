@@ -40,9 +40,14 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Find the employee
-    const employee = await prisma.employee.findUnique({
-      where: { employeeCode }
+    // Find the employee (case-insensitive)
+    const employee = await prisma.employee.findFirst({
+      where: { 
+        employeeCode: {
+          equals: employeeCode,
+          mode: 'insensitive'
+        }
+      }
     })
 
     if (!employee) {
@@ -65,7 +70,7 @@ export async function POST(request: NextRequest) {
 
     // Link the account
     const updatedEmployee = await prisma.employee.update({
-      where: { employeeCode },
+      where: { id: employee.id },
       data: { 
         clerkUserId: userId,
         lastLogin: new Date()

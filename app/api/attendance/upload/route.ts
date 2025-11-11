@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { awardPoints, POINT_VALUES } from '@/lib/gamification'
 
 export async function POST(request: NextRequest) {
   try {
@@ -206,6 +207,9 @@ export async function POST(request: NextRequest) {
       }
 
       // Use Prisma transaction to save records
+      // Generate a single batch ID for this upload
+      const batchId = `upload_${Date.now()}`
+      
       const savedRecords = await prisma.$transaction(async (tx) => {
         const created = []
         
@@ -223,23 +227,40 @@ export async function POST(request: NextRequest) {
               employeeId = parseInt(record.employeeCode)
             }
 
-            // Ensure employee exists - use employeeCode as unique identifier
-            const employee = await tx.employee.upsert({
-              where: { employeeCode: record.employeeCode },
-              update: {
-                name: record.employeeName
-              },
-              create: {
-                name: record.employeeName,
-                email: `${record.employeeCode.toLowerCase()}@company.com`,
-                employeeCode: record.employeeCode
+            // Ensure employee exists - use employeeCode as unique identifier (case-insensitive)
+            // First try to find existing employee with case-insensitive match
+            let employee = await tx.employee.findFirst({
+              where: { 
+                employeeCode: {
+                  equals: record.employeeCode,
+                  mode: 'insensitive'
+                }
               }
             })
+
+            if (employee) {
+              // Update existing employee
+              employee = await tx.employee.update({
+                where: { id: employee.id },
+                data: {
+                  name: record.employeeName
+                }
+              })
+            } else {
+              // Create new employee
+              employee = await tx.employee.create({
+                data: {
+                  name: record.employeeName,
+                  email: `${record.employeeCode.toLowerCase()}@company.com`,
+                  employeeCode: record.employeeCode
+                }
+              })
+            }
             
             // Use the actual employee ID from database
             employeeId = employee.id
 
-            // Create attendance record
+            // Create attendance record with the SAME batch ID for all records
             const attendanceRecord = await tx.attendanceRecord.upsert({
               where: {
                 employee_date_attendance: {
@@ -258,7 +279,7 @@ export async function POST(request: NextRequest) {
                 shiftStart: record.shiftStart || null,
                 hasBeenEdited: false,
                 importSource: 'srp_upload',
-                importBatch: `upload_${Date.now()}`
+                importBatch: batchId  // Use the single batch ID
               },
               create: {
                 employeeId: employeeId,
@@ -278,7 +299,7 @@ export async function POST(request: NextRequest) {
                 shiftStart: record.shiftStart || null,
                 overtime: 0,
                 importSource: 'srp_upload',
-                importBatch: `upload_${Date.now()}`,
+                importBatch: batchId,  // Use the single batch ID
                 hasBeenEdited: false
               }
             })
@@ -293,6 +314,35 @@ export async function POST(request: NextRequest) {
       })
 
       console.log('Successfully saved attendance records:', savedRecords.length)
+
+      // Award points for attendance (run in background, don't block response)
+      awardAttendancePoints(savedRecords).catch(err => 
+        console.error('Error awarding attendance points:', err)
+      )
+
+      // Save to upload history
+      try {
+        const uploadHistoryEntry = {
+          id: batchId,  // Use the same batch ID
+          fileName: file.name,
+          uploadDate: date,
+          recordCount: savedRecords.length,
+          uploadedAt: new Date().toISOString(),
+          fileContent: fileContent
+        }
+
+        // Save to upload history API
+        await fetch(`${request.nextUrl.origin}/api/upload-history`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(uploadHistoryEntry)
+        })
+
+        console.log('Upload history saved successfully')
+      } catch (historyError) {
+        console.error('Failed to save upload history:', historyError)
+        // Don't fail the upload if history save fails
+      }
 
       return NextResponse.json({ 
         success: true, 
@@ -312,5 +362,48 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ 
       error: 'Internal server error during file upload' 
     }, { status: 500 })
+  }
+}
+
+// Helper function to award points for attendance records
+async function awardAttendancePoints(records: any[]) {
+  for (const record of records) {
+    try {
+      if (record.status === 'PRESENT') {
+        // Award points for being present
+        await awardPoints({
+          employeeId: record.employeeId,
+          points: POINT_VALUES.ATTENDANCE_PRESENT,
+          type: 'earned',
+          description: 'Daily attendance',
+          reference: `attendance:${record.id}`
+        })
+
+        // Bonus for early check-in (before 9 AM)
+        if (record.checkInTime) {
+          const checkInHour = new Date(record.checkInTime).getHours()
+          if (checkInHour < 9) {
+            await awardPoints({
+              employeeId: record.employeeId,
+              points: POINT_VALUES.EARLY_CHECKIN,
+              type: 'bonus',
+              description: 'Early check-in bonus',
+              reference: `attendance:${record.id}`
+            })
+          }
+        }
+      } else if (record.status === 'ABSENT') {
+        // Penalty for absence
+        await awardPoints({
+          employeeId: record.employeeId,
+          points: POINT_VALUES.ABSENCE_PENALTY,
+          type: 'penalty',
+          description: 'Absence penalty',
+          reference: `attendance:${record.id}`
+        })
+      }
+    } catch (error) {
+      console.error(`Error awarding points for attendance record ${record.id}:`, error)
+    }
   }
 }
